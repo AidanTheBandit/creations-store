@@ -1,58 +1,41 @@
 import { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
+import DiscordProvider from "next-auth/providers/discord";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    CredentialsProvider({
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-
-        const user = await db.query.users.findFirst({
-          where: eq(users.email, credentials.email as string),
-        });
-
-        if (!user || !user.password) {
-          return null;
-        }
-
-        const isPasswordValid = await compare(
-          credentials.password as string,
-          user.password,
-        );
-
-        if (!isPasswordValid) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        };
-      },
+    DiscordProvider({
+      clientId: process.env.DISCORD_CLIENT_ID || "",
+      clientSecret: process.env.DISCORD_CLIENT_SECRET || "",
     }),
   ],
   session: {
     strategy: "jwt",
   },
-  pages: {
-    signIn: "/auth/login",
-    signUp: "/auth/register",
-  },
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
+    async jwt({ token, account, profile }) {
+      if (account && profile) {
+        // First time login - create or update user
+        const existingUser = await db.query.users.findFirst({
+          where: eq(users.email, profile.email as string),
+        });
+
+        if (existingUser) {
+          token.id = existingUser.id;
+        } else {
+          // Create new user
+          const userId = crypto.randomUUID();
+          await db.insert(users).values({
+            id: userId,
+            email: profile.email as string,
+            name: profile.name as string,
+            avatar: profile.image as string,
+            password: "", // Not needed for OAuth
+          });
+          token.id = userId;
+        }
       }
       return token;
     },

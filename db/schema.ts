@@ -8,7 +8,7 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
-  password: text("password").notNull(),
+  password: text("password"), // Made optional for OAuth users
   bio: text("bio"),
   avatar: text("avatar"),
   createdAt: integer("created_at", { mode: "timestamp" })
