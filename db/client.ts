@@ -7,13 +7,10 @@ if (!process.env.TURSO_DATABASE_URL) {
   throw new Error("TURSO_DATABASE_URL environment variable is not set");
 }
 
-if (!process.env.TURSO_AUTH_TOKEN) {
-  throw new Error("TURSO_AUTH_TOKEN environment variable is not set");
-}
-
+// For local development, TURSO_AUTH_TOKEN can be empty
 const turso = createClient({
   url: process.env.TURSO_DATABASE_URL,
-  authToken: process.env.TURSO_AUTH_TOKEN,
+  authToken: process.env.TURSO_AUTH_TOKEN || undefined,
 });
 
 export const db = drizzle(turso, { schema });

@@ -5,7 +5,6 @@ import { bookmarks, categories } from "@/db/schema";
 import { generateSlug } from "@/lib/utils";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import Exa from "exa-js";
 
 export type ActionState = {
   success?: boolean;
@@ -34,18 +33,6 @@ type BookmarkData = {
   isArchived: boolean;
   createdAt: Date;
   updatedAt: Date;
-};
-
-type GeneratedContent = {
-  title: string;
-  description: string;
-  url: string;
-  overview: string;
-  search_results: string;
-  favicon: string;
-  ogImage: string;
-  slug: string;
-  error?: string;
 };
 
 // Category Actions
@@ -455,25 +442,6 @@ export async function scrapeUrl(
 
     const metadata = await metadataResponse.json();
 
-    // Get search results using Exa API
-    const exaResponse = await fetch("https://api.exa.ai/search", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.EXASEARCH_API_KEY}`,
-      },
-      body: JSON.stringify({
-        query: url,
-        num_results: 5,
-      }),
-    });
-
-    if (!exaResponse.ok) {
-      throw new Error("Failed to fetch search results from Exa");
-    }
-
-    const searchResults = await exaResponse.json();
-
     return {
       success: true,
       data: {
@@ -482,7 +450,6 @@ export async function scrapeUrl(
         favicon: metadata.favicon || "",
         ogImage: metadata.ogImage || "",
         url: metadata.url || url,
-        search_results: JSON.stringify(searchResults),
       },
     };
   } catch (error) {
@@ -490,97 +457,6 @@ export async function scrapeUrl(
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to scrape URL",
-    };
-  }
-}
-
-export async function generateContent(url: string): Promise<GeneratedContent> {
-  try {
-    if (!url) {
-      throw new Error("URL is required");
-    }
-
-    // Get the base URL for the API
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXT_PUBLIC_SITE_URL // Add support for custom domain
-      ? process.env.NEXT_PUBLIC_SITE_URL
-      : process.env.NODE_ENV === "development"
-        ? "http://localhost:3000"
-        : ""; // Empty string will make the fetch relative to current origin
-
-    // Use relative URL if baseUrl is empty (will use current origin)
-    const metadataUrl = baseUrl
-      ? `${baseUrl}/api/metadata?url=${encodeURIComponent(url)}`
-      : `/api/metadata?url=${encodeURIComponent(url)}`;
-
-    // First, fetch metadata from our API
-    const metadataResponse = await fetch(metadataUrl, {
-      method: "GET",
-    });
-
-    if (!metadataResponse.ok) {
-      const errorData = await metadataResponse.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to fetch metadata");
-    }
-
-    const metadata = await metadataResponse.json();
-    console.log("API metadata:", metadata);
-
-    // Get search results using Exa
-    const exa = new Exa(process.env.EXASEARCH_API_KEY as string);
-    const searchResults = await exa.getContents([url], {
-      text: true,
-      livecrawl: "fallback",
-    });
-
-    console.log("Exa search results:", searchResults);
-
-    // Generate overview using Claude
-    const overviewResponse = await fetch(`${baseUrl}/api/generate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url: url,
-        searchResults: JSON.stringify(searchResults),
-      }),
-    });
-
-    if (!overviewResponse.ok) {
-      throw new Error("Failed to generate overview");
-    }
-
-    const overviewData = await overviewResponse.json();
-    console.log("Generated overview:", overviewData);
-
-    // Generate a slug from the title
-    const slug = generateSlug(metadata.title || "");
-
-    return {
-      title: metadata.title || "",
-      description: metadata.description || "",
-      url: metadata.url || url,
-      overview: overviewData.overview || "",
-      search_results: JSON.stringify(searchResults),
-      favicon: metadata.favicon || "",
-      ogImage: metadata.ogImage || "",
-      slug: slug,
-    };
-  } catch (error) {
-    console.error("Error generating content:", error);
-    return {
-      title: "",
-      description: "",
-      url: url,
-      overview: "",
-      search_results: "",
-      favicon: "",
-      ogImage: "",
-      slug: "",
-      error:
-        error instanceof Error ? error.message : "Failed to generate content",
     };
   }
 }

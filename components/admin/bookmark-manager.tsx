@@ -34,7 +34,6 @@ import {
   createBookmark,
   updateBookmark,
   deleteBookmark,
-  generateContent,
   bulkUploadBookmarks,
   type ActionState,
 } from "@/lib/actions";
@@ -91,7 +90,6 @@ export function BookmarkManager({
   bookmarks,
   categories,
 }: BookmarkManagerProps) {
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isBulkSheetOpen, setIsBulkSheetOpen] = useState(false);
@@ -285,47 +283,6 @@ export function BookmarkManager({
     setFormData((prev) => ({ ...prev, url }));
   };
 
-  const handleGenerateContent = async (form: HTMLFormElement) => {
-    if (isGenerating) return;
-
-    try {
-      setIsGenerating(true);
-      const formData = new FormData(form);
-      const url = formData.get("url") as string;
-
-      if (!url) {
-        toast.error("Please enter a URL first");
-        return;
-      }
-
-      // Create a new FormData with just the URL
-      const data = new FormData();
-      data.append("url", url);
-
-      const result = await generateContent(url);
-
-      if ("error" in result) {
-        toast.error(result.error as string);
-      } else {
-        setFormData((prev) => ({
-          ...prev,
-          title: result.title || prev.title,
-          description: result.description || prev.description,
-          overview: result.overview || prev.overview,
-          favicon: result.favicon || prev.favicon,
-          ogImage: result.ogImage || prev.ogImage,
-          slug: result.slug || prev.slug,
-        }));
-        toast.success("Content generated successfully!");
-      }
-    } catch (err) {
-      console.error("Error generating content:", err);
-      toast.error("Failed to generate content");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   const handleBulkUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -471,37 +428,15 @@ export function BookmarkManager({
               <div className="grid gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="url">URL</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="url"
-                      name="url"
-                      type="url"
-                      required
-                      value={formData.url}
-                      onChange={handleUrlChange}
-                      placeholder="https://example.com"
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        const form = document.getElementById(
-                          "bookmarkForm",
-                        ) as HTMLFormElement;
-                        if (form) handleGenerateContent(form);
-                      }}
-                      disabled={isGenerating}
-                    >
-                      {isGenerating ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        "Generate"
-                      )}
-                    </Button>
-                  </div>
+                  <Input
+                    id="url"
+                    name="url"
+                    type="url"
+                    required
+                    value={formData.url}
+                    onChange={handleUrlChange}
+                    placeholder="https://example.com"
+                  />
                 </div>
 
                 <div className="space-y-2">

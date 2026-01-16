@@ -26,14 +26,13 @@ pnpm db:seed        # Seed database with initial data
 
 ## Architecture Overview
 
-This is a Next.js 14 App Router application for managing curated bookmark directories with AI-powered content generation.
+This is a Next.js 14 App Router application for managing curated bookmark directories.
 
 ### Key Technologies
 - **Next.js 14** with App Router and Server Actions
 - **Turso (SQLite)** with Drizzle ORM for database
 - **shadcn/ui** components built on Radix UI
 - **Tailwind CSS** for styling with dark/light mode
-- **Claude AI** for automatic content generation
 - **bohoauth** for admin authentication
 
 ### Project Structure
@@ -59,7 +58,7 @@ db/
 └── seed.ts          # Database seeding script
 
 lib/
-├── actions.ts       # Server Actions for all mutations (CRUD + AI)
+├── actions.ts       # Server Actions for all mutations (CRUD)
 ├── data.ts          # Database query functions
 ├── boho.ts          # Auth configuration
 └── utils.ts         # Utility functions
@@ -68,7 +67,7 @@ lib/
 ## Authentication
 
 Admin routes are protected using **bohoauth** middleware configured in `lib/boho.ts`:
-- Protected paths: `/admin`, `/api/bookmarks`, `/api/generate`, `/api/metadata`
+- Protected paths: `/admin`, `/api/bookmarks`, `/api/metadata`
 - Login route: `/admin/login`
 - Environment variables: `BOHO_PASSWORD`, `BOHO_SECRET`
 
@@ -128,15 +127,15 @@ import { bookmarks, categories } from "@/db/schema";
 import { getAllBookmarks, getAllCategories } from "@/lib/data";
 ```
 
-## AI Content Generation Pipeline
+## Metadata Scraping
 
-1. **URL Input** → User/admin submits URL
-2. **Metadata Scraping** → `/api/metadata` uses Cheerio to extract title, description, favicon, ogImage
-3. **Search Enhancement** → Exa API fetches additional content context
-4. **Content Generation** → `/api/generate` uses Claude to generate overview (markdown, <200 words)
-5. **Storage** → All data stored in database
+The `/api/metadata` endpoint uses Cheerio to extract basic metadata from URLs:
+- Title
+- Description
+- Favicon URL
+- Open Graph image
 
-Requires: `ANTHROPIC_API_KEY`, `EXASEARCH_API_KEY`
+This metadata is used to pre-fill bookmark information in the admin interface.
 
 ## Component Conventions
 
@@ -171,8 +170,6 @@ Required for core functionality:
 - `NEXT_PUBLIC_SITE_URL` - Site URL for OpenGraph metadata
 
 Optional features:
-- `ANTHROPIC_API_KEY` - Claude AI for content generation
-- `EXASEARCH_API_KEY` - Exa for semantic search
 - `LOOPS_API_KEY` - Newsletter subscriptions
 
 ## Making Database Changes
@@ -188,7 +185,6 @@ Located at `/admin` (protected):
 - Tab-based interface (Bookmarks vs Categories)
 - Single bookmark addition with URL metadata scraping
 - Bulk URL import with progress tracking
-- AI-assisted content generation
 - Category management (create, edit, delete)
 - Real-time statistics
 
