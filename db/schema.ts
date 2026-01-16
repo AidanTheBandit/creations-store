@@ -88,9 +88,13 @@ export const bookmarks = sqliteTable("bookmarks", {
     .notNull()
     .default(false),
   search_results: text("search_results"),
+
+  // Analytics
+  views: integer("views").notNull().default(0),
 }, (bookmarks) => ({
   userIdx: index("bookmarks_user_idx").on(bookmarks.userId),
   statusIdx: index("bookmarks_status_idx").on(bookmarks.status),
+  viewsIdx: index("bookmarks_views_idx").on(bookmarks.views),
 }));
 
 // Relations

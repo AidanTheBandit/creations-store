@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Star, Archive, ExternalLink, Bookmark } from "lucide-react";
+import { Star, Archive, ExternalLink, AppWindow } from "lucide-react";
 import { Button } from "./ui/button";
 
 interface BookmarkCardProps {
@@ -38,141 +38,127 @@ export const BookmarkCard = ({ bookmark }: BookmarkCardProps) => {
   return (
     <div
       className={cn(
-        "not-prose",
-        "group relative flex h-full flex-col overflow-hidden rounded-xl border bg-card",
-        "transition-all duration-300 hover:shadow-lg",
-        "hover:ring-2 hover:ring-accent hover:ring-offset-2",
+        "not-prose group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:shadow-xl hover:-translate-y-1",
         bookmark.isArchived && "opacity-75 hover:opacity-100",
       )}
     >
-      {/* Status Indicators */}
-      <div className="absolute right-3 top-3 z-10 flex gap-1.5">
-        {bookmark.isFavorite && (
-          <Badge
-            variant="secondary"
-            className="bg-yellow-500/10 text-yellow-500 backdrop-blur-sm"
+      {/* App Icon Header */}
+      <div className="relative bg-gradient-to-br from-muted/50 to-muted p-6 pb-4">
+        <div className="flex items-start justify-between">
+          {/* App Icon */}
+          <Link
+            href={detailsUrl}
+            className="flex items-center justify-center rounded-2xl border-2 border-border bg-background p-3 shadow-sm transition-all hover:scale-105 hover:border-primary/50"
+            aria-label={`View details for ${bookmark.title}`}
           >
-            <Star className="h-3 w-3" aria-label="Favorite bookmark" />
-          </Badge>
-        )}
-        {bookmark.isArchived && (
-          <Badge
-            variant="secondary"
-            className="bg-gray-500/10 text-gray-500 backdrop-blur-sm"
-          >
-            <Archive className="h-3 w-3" aria-label="Archived bookmark" />
-          </Badge>
+            {bookmark.favicon ? (
+              <img
+                src={bookmark.favicon}
+                alt={`${bookmark.title} icon`}
+                width={64}
+                height={64}
+                className="h-16 w-16 rounded-xl"
+              />
+            ) : bookmark.ogImage ? (
+              <img
+                src={bookmark.ogImage}
+                alt={`${bookmark.title} preview`}
+                width={64}
+                height={64}
+                className="h-16 w-16 rounded-xl object-cover"
+              />
+            ) : (
+              <AppWindow
+                className="h-16 w-16 text-muted-foreground"
+                aria-hidden="true"
+              />
+            )}
+          </Link>
+
+          {/* Status Badges */}
+          <div className="flex gap-1.5">
+            {bookmark.isFavorite && (
+              <Badge
+                variant="secondary"
+                className="bg-yellow-500/10 text-yellow-500 backdrop-blur-sm"
+              >
+                <Star className="h-3 w-3" aria-label="Featured" />
+              </Badge>
+            )}
+            {bookmark.isArchived && (
+              <Badge
+                variant="secondary"
+                className="bg-gray-500/10 text-gray-500 backdrop-blur-sm"
+              >
+                <Archive className="h-3 w-3" aria-label="Archived" />
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Category Badge */}
+        {bookmark.category && (
+          <div className="mt-3">
+            <Badge
+              variant="outline"
+              className="border-0 bg-background/50 backdrop-blur-sm text-xs font-medium"
+            >
+              {bookmark.category.name}
+            </Badge>
+          </div>
         )}
       </div>
 
-      {/* Preview Image Container */}
-      <Link
-        href={detailsUrl}
-        className="relative aspect-video w-full overflow-hidden border-b focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        aria-label={`View details for ${bookmark.title}`}
-      >
-        {bookmark.ogImage ? (
-          <img
-            src={bookmark.ogImage}
-            alt="Open Graph preview"
-            width={300}
-            height={200}
-            className="rounded-lg object-cover"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center bg-muted">
-            <Bookmark
-              className="h-8 w-8 text-muted-foreground"
-              aria-hidden="true"
-            />
-          </div>
-        )}
-        <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-      </Link>
-
-      {/* Content Section */}
-      <div className="flex flex-1 flex-col p-4">
+      {/* App Info Section */}
+      <div className="flex flex-1 flex-col p-4 space-y-3">
         {/* Title and Description */}
-        <div className="flex-1 space-y-1">
-          <h2 className="font-semibold leading-tight tracking-tight">
+        <div className="space-y-1">
+          <h2 className="font-semibold text-lg leading-tight tracking-tight group-hover:text-primary transition-colors">
             {bookmark.title}
           </h2>
-          {bookmark.description && (
-            <p className="line-clamp-2 text-sm text-muted-foreground">
-              {bookmark.description}
-            </p>
+          {bookmark.user && (
+            <Link
+              href={`/u/${bookmark.user.id}`}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              by {bookmark.user.name}
+            </Link>
           )}
         </div>
 
-        {/* Bottom Section */}
-        <div className="space-y-3 pt-4">
-          {/* Category and Site Info */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              {bookmark.favicon ? (
-                <img
-                  src={bookmark.favicon}
-                  alt="Site favicon"
-                  width={16}
-                  height={16}
-                  className="h-4 w-4"
-                />
-              ) : (
-                <Bookmark
-                  className="h-4 w-4 text-muted-foreground"
-                  aria-hidden="true"
-                />
-              )}
-              {bookmark.category && (
-                <Badge
-                  style={{
-                    backgroundColor:
-                      bookmark.category.color || "hsl(var(--primary))",
-                    color: "white",
-                  }}
-                  className="w-fit transition-transform hover:scale-105"
-                >
-                  {bookmark.category.icon} {bookmark.category.name}
-                </Badge>
-              )}
-            </div>
-            {bookmark.user && (
-              <Link
-                href={`/u/${bookmark.user.id}`}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                by {bookmark.user.name}
-              </Link>
-            )}
-          </div>
+        {/* Description */}
+        {bookmark.description && (
+          <p className="line-clamp-2 text-sm text-muted-foreground">
+            {bookmark.description}
+          </p>
+        )}
 
-          {/* Action Buttons */}
-          <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="w-full font-medium"
-              asChild
+        {/* Action Buttons */}
+        <div className="flex gap-2 pt-2">
+          <Button
+            variant="default"
+            size="sm"
+            className="flex-1 font-medium"
+            asChild
+          >
+            <Link href={detailsUrl}>View</Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="group/link flex-1 font-medium"
+            asChild
+          >
+            <Link
+              href={externalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1.5"
             >
-              <Link href={detailsUrl}>View Details</Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="group/link w-full font-medium"
-              asChild
-            >
-              <Link
-                href={externalUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center"
-              >
-                Visit Site
-                <ExternalLink className="ml-2 h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-            </Button>
-          </div>
+              Visit
+              <ExternalLink className="h-3.5 w-3.5 transition-transform group-hover/link:translate-x-0.5" />
+            </Link>
+          </Button>
         </div>
       </div>
     </div>

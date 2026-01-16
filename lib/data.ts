@@ -1,21 +1,23 @@
 import { db } from "@/db/client";
 import { bookmarks, categories, users } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 export type Bookmark = typeof bookmarks.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type User = typeof users.$inferSelect;
 
-export async function getAllBookmarks(): Promise<(Bookmark & { category: Category | null })[]> {
+export async function getAllBookmarks(): Promise<(Bookmark & { category: Category | null; user: User | null })[]> {
   const results = await db
     .select()
     .from(bookmarks)
     .leftJoin(categories, eq(bookmarks.categoryId, categories.id))
+    .leftJoin(users, eq(bookmarks.userId, users.id))
     .where(eq(bookmarks.status, "published"));
 
   return results.map(row => ({
     ...row.bookmarks,
     category: row.categories,
+    user: row.users,
   }));
 }
 
@@ -41,14 +43,15 @@ export async function getBookmarkById(id: number): Promise<(Bookmark & { categor
   };
 }
 
-export async function getBookmarkBySlug(slug: string): Promise<(Bookmark & { category: Category | null }) | null> {
+export async function getBookmarkBySlug(slug: string): Promise<(Bookmark & { category: Category | null; user: User | null }) | null> {
   const results = await db
     .select()
     .from(bookmarks)
     .leftJoin(categories, eq(bookmarks.categoryId, categories.id))
+    .leftJoin(users, eq(bookmarks.userId, users.id))
     .where(eq(bookmarks.slug, slug))
     .limit(1);
-  
+
   if (results.length === 0) {
     return null;
   }
@@ -56,7 +59,17 @@ export async function getBookmarkBySlug(slug: string): Promise<(Bookmark & { cat
   return {
     ...results[0].bookmarks,
     category: results[0].categories,
+    user: results[0].users,
   };
+}
+
+export async function incrementBookmarkViews(id: number): Promise<void> {
+  await db
+    .update(bookmarks)
+    .set({
+      views: sql`${bookmarks.views} + 1`,
+    })
+    .where(eq(bookmarks.id, id));
 }
 
 // User-specific functions

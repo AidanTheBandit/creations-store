@@ -29,6 +29,13 @@
       "when": 1768604301926,
       "tag": "0003_fine_quentin_quire",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1768607343512,
+      "tag": "0004_early_swarm",
+      "breakpoints": true
     }
   ]
 }
