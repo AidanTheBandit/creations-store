@@ -1,6 +1,33 @@
 import { text, sqliteTable, integer } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import { relations } from "drizzle-orm";
+import { index } from "drizzle-orm/sqlite-core";
+
+// Users table
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  name: text("name").notNull(),
+  password: text("password").notNull(),
+  bio: text("bio"),
+  avatar: text("avatar"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+}, (users) => ({
+  emailIdx: index("users_email_idx").on(users.email),
+}));
+
+// Sessions table for NextAuth
+export const sessions = sqliteTable("sessions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expires: integer("expires", { mode: "timestamp" }).notNull(),
+  sessionToken: text("session_token").notNull().unique(),
+});
 
 // Categories table
 export const categories = sqliteTable("categories", {
@@ -28,6 +55,10 @@ export const bookmarks = sqliteTable("bookmarks", {
   // Organization
   categoryId: text("category_id").references(() => categories.id),
   tags: text("tags"), // Comma-separated tags
+
+  // User ownership
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+  status: text("status", { enum: ["draft", "published"] }).notNull().default("draft"),
 
   // Metadata
   favicon: text("favicon"), // URL to the site's favicon
@@ -57,7 +88,10 @@ export const bookmarks = sqliteTable("bookmarks", {
     .notNull()
     .default(false),
   search_results: text("search_results"),
-});
+}, (bookmarks) => ({
+  userIdx: index("bookmarks_user_idx").on(bookmarks.userId),
+  statusIdx: index("bookmarks_status_idx").on(bookmarks.status),
+}));
 
 // Relations
 export const bookmarksRelations = relations(bookmarks, ({ one }) => ({
@@ -65,13 +99,34 @@ export const bookmarksRelations = relations(bookmarks, ({ one }) => ({
     fields: [bookmarks.categoryId],
     references: [categories.id],
   }),
+  user: one(users, {
+    fields: [bookmarks.userId],
+    references: [users.id],
+  }),
 }));
 
 export const categoriesRelations = relations(categories, ({ many }) => ({
   bookmarks: many(bookmarks),
 }));
 
+export const usersRelations = relations(users, ({ many }) => ({
+  bookmarks: many(bookmarks),
+  sessions: many(sessions),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, {
+    fields: [sessions.userId],
+    references: [users.id],
+  }),
+}));
+
 // Type definitions
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
 

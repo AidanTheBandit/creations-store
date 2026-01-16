@@ -18,6 +18,10 @@ interface BookmarkCardProps {
       color?: string;
       icon?: string;
     };
+    user?: {
+      id: string;
+      name: string;
+    } | null;
     favicon?: string | null;
     overview?: string | null;
     ogImage?: string | null;
@@ -103,32 +107,42 @@ export const BookmarkCard = ({ bookmark }: BookmarkCardProps) => {
         {/* Bottom Section */}
         <div className="space-y-3 pt-4">
           {/* Category and Site Info */}
-          <div className="flex items-center gap-2">
-            {bookmark.favicon ? (
-              <img
-                src={bookmark.favicon}
-                alt="Site favicon"
-                width={16}
-                height={16}
-                className="h-4 w-4"
-              />
-            ) : (
-              <Bookmark
-                className="h-4 w-4 text-muted-foreground"
-                aria-hidden="true"
-              />
-            )}
-            {bookmark.category && (
-              <Badge
-                style={{
-                  backgroundColor:
-                    bookmark.category.color || "hsl(var(--primary))",
-                  color: "white",
-                }}
-                className="w-fit transition-transform hover:scale-105"
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              {bookmark.favicon ? (
+                <img
+                  src={bookmark.favicon}
+                  alt="Site favicon"
+                  width={16}
+                  height={16}
+                  className="h-4 w-4"
+                />
+              ) : (
+                <Bookmark
+                  className="h-4 w-4 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              )}
+              {bookmark.category && (
+                <Badge
+                  style={{
+                    backgroundColor:
+                      bookmark.category.color || "hsl(var(--primary))",
+                    color: "white",
+                  }}
+                  className="w-fit transition-transform hover:scale-105"
+                >
+                  {bookmark.category.icon} {bookmark.category.name}
+                </Badge>
+              )}
+            </div>
+            {bookmark.user && (
+              <Link
+                href={`/u/${bookmark.user.id}`}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                {bookmark.category.icon} {bookmark.category.name}
-              </Badge>
+                by {bookmark.user.name}
+              </Link>
             )}
           </div>
 

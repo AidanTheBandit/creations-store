@@ -22,6 +22,13 @@
       "when": 1731613988197,
       "tag": "0002_furry_mindworm",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1768604301926,
+      "tag": "0003_fine_quentin_quire",
+      "breakpoints": true
     }
   ]
 }

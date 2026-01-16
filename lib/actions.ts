@@ -1,10 +1,11 @@
 "use server";
 
 import { db } from "@/db/client";
-import { bookmarks, categories } from "@/db/schema";
+import { bookmarks, categories, users } from "@/db/schema";
 import { generateSlug } from "@/lib/utils";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { hash } from "bcryptjs";
 
 export type ActionState = {
   success?: boolean;
@@ -34,6 +35,67 @@ type BookmarkData = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+// User Actions
+export async function registerUser(
+  prevState: ActionState | null,
+  formData: { email: string; password: string; name: string },
+): Promise<ActionState> {
+  try {
+    const { email, password, name } = formData;
+
+    // Check if user exists
+    const existingUser = await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
+
+    if (existingUser) {
+      return { error: "User already exists" };
+    }
+
+    // Hash password
+    const hashedPassword = await hash(password, 12);
+
+    // Create user
+    const userId = crypto.randomUUID();
+    await db.insert(users).values({
+      id: userId,
+      email,
+      password: hashedPassword,
+      name,
+    });
+
+    return { success: true, data: { userId } };
+  } catch (error) {
+    console.error("Error registering user:", error);
+    return { error: "Failed to register user" };
+  }
+}
+
+export async function updateUserProfile(
+  prevState: ActionState | null,
+  formData: { userId: string; name: string; bio: string; avatar: string },
+): Promise<ActionState> {
+  try {
+    const { userId, name, bio, avatar } = formData;
+
+    await db
+      .update(users)
+      .set({
+        name,
+        bio,
+        avatar,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    return { error: "Failed to update profile" };
+  }
+}
 
 // Category Actions
 export async function createCategory(
@@ -163,6 +225,8 @@ export async function createBookmark(
     categoryId: string;
     isFavorite: string;
     isArchived: string;
+    userId: string;
+    status?: "draft" | "published";
   },
 ): Promise<ActionState> {
   try {
@@ -177,6 +241,8 @@ export async function createBookmark(
     const categoryId = formData.categoryId;
     const isFavorite = formData.isFavorite === "true";
     const isArchived = formData.isArchived === "true";
+    const userId = formData.userId;
+    const status = formData.status || "draft";
 
     // Generate slug if not provided
     if (!slug) {
@@ -195,10 +261,13 @@ export async function createBookmark(
       overview,
       favicon,
       ogImage,
+      userId,
+      status,
     });
 
     revalidatePath("/admin");
     revalidatePath("/");
+    revalidatePath("/dashboard");
 
     return { success: true };
   } catch (err) {
@@ -222,6 +291,7 @@ export async function updateBookmark(
     categoryId: string;
     isFavorite: string;
     isArchived: string;
+    userId: string;
   },
 ): Promise<ActionState> {
   try {
@@ -232,6 +302,19 @@ export async function updateBookmark(
     const id = formData.id;
     if (!id) {
       return { error: "No bookmark ID provided" };
+    }
+
+    // Check ownership
+    const bookmark = await db.query.bookmarks.findFirst({
+      where: eq(bookmarks.id, Number(id)),
+    });
+
+    if (!bookmark) {
+      return { error: "Bookmark not found" };
+    }
+
+    if (bookmark.userId !== formData.userId) {
+      return { error: "Unauthorized" };
     }
 
     const title = formData.title;
@@ -270,6 +353,7 @@ export async function updateBookmark(
 
     revalidatePath("/admin");
     revalidatePath("/");
+    revalidatePath("/dashboard");
 
     return { success: true };
   } catch (err) {
@@ -278,11 +362,40 @@ export async function updateBookmark(
   }
 }
 
+export async function publishBookmark(
+  prevState: ActionState | null,
+  formData: { id: string; userId: string },
+): Promise<ActionState> {
+  try {
+    const bookmark = await db.query.bookmarks.findFirst({
+      where: eq(bookmarks.id, Number(formData.id)),
+    });
+
+    if (!bookmark || bookmark.userId !== formData.userId) {
+      return { error: "Unauthorized" };
+    }
+
+    await db
+      .update(bookmarks)
+      .set({ status: "published" })
+      .where(eq(bookmarks.id, Number(formData.id)));
+
+    revalidatePath("/dashboard");
+    revalidatePath("/");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error publishing bookmark:", error);
+    return { error: "Failed to publish bookmark" };
+  }
+}
+
 export async function deleteBookmark(
   prevState: ActionState | null,
   formData: {
     id: string;
     url: string;
+    userId: string;
   },
 ): Promise<ActionState> {
   try {
@@ -295,12 +408,26 @@ export async function deleteBookmark(
       return { error: "No bookmark ID provided" };
     }
 
+    // Check ownership
+    const bookmark = await db.query.bookmarks.findFirst({
+      where: eq(bookmarks.id, Number(id)),
+    });
+
+    if (!bookmark) {
+      return { error: "Bookmark not found" };
+    }
+
+    if (bookmark.userId !== formData.userId) {
+      return { error: "Unauthorized" };
+    }
+
     const url = formData.url;
 
     await db.delete(bookmarks).where(eq(bookmarks.id, Number(id)));
 
     revalidatePath("/admin");
     revalidatePath("/");
+    revalidatePath("/dashboard");
     revalidatePath(`/${encodeURIComponent(url)}`);
 
     return { success: true };

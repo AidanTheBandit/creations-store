@@ -3,7 +3,7 @@ import React from "react";
 import { Suspense } from "react";
 
 // Database Imports
-import { getAllBookmarks, getAllCategories } from "@/lib/data";
+import { getPublishedBookmarks, getAllCategories } from "@/lib/data";
 
 // Component Imports
 import { Main, Section, Container } from "@/components/craft";
@@ -20,7 +20,7 @@ export default async function Home({
   searchParams: { category?: string; search?: string };
 }) {
   const [bookmarks, categories] = await Promise.all([
-    getAllBookmarks(),
+    getPublishedBookmarks(),
     getAllCategories(),
   ]);
 
@@ -87,6 +87,12 @@ export default async function Home({
                           icon: bookmark.category.icon || undefined,
                         }
                       : undefined,
+                    user: bookmark.user
+                      ? {
+                          id: bookmark.user.id,
+                          name: bookmark.user.name,
+                        }
+                      : null,
                     favicon: bookmark.favicon,
                     overview: bookmark.overview,
                     ogImage: bookmark.ogImage,

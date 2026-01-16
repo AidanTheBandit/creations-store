@@ -5,6 +5,8 @@ import Link from "next/link";
 import Logo from "@/public/logo.svg";
 import "./globals.css";
 import { Manrope as Font } from "next/font/google";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 import { Button } from "@/components/ui/button";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -36,11 +38,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(directory.baseUrl),
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getServerSession(authOptions);
+
   return (
     <html lang="en">
       <body className={`${font.className} antialiased`}>
@@ -50,7 +54,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Header />
+          <Header session={session} />
           {children}
           <Footer />
         </ThemeProvider>
@@ -60,14 +64,37 @@ export default function RootLayout({
   );
 }
 
-const Header = () => {
+const Header = async ({ session }: { session: any }) => {
   return (
     <header>
       <Container className="flex items-start justify-between gap-3">
         <Link href="/" className="transition-all hover:opacity-80">
            <h2 className="font-bold text-xl tracking-tight">{directory.name}</h2>
         </Link>
-        <Subscribe />
+        <div className="flex items-center gap-3">
+          {session?.user ? (
+            <>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard">Dashboard</Link>
+              </Button>
+              <form action="/api/auth/signout" method="POST">
+                <Button type="submit" variant="ghost" size="sm">
+                  Sign Out
+                </Button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/auth/login">Sign In</Link>
+              </Button>
+              <Button size="sm" asChild>
+                <Link href="/auth/register">Sign Up</Link>
+              </Button>
+            </>
+          )}
+          <Subscribe />
+        </div>
       </Container>
     </header>
   );

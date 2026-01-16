@@ -1,16 +1,18 @@
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
-import { getAllCategories, getAllBookmarks } from "@/lib/data";
+import { getAllCategories, getAllBookmarks, getAllUsers } from "@/lib/data";
 import { CategoryManager } from "@/components/admin/category-manager";
 import { BookmarkManager } from "@/components/admin/bookmark-manager";
+import { UserManager } from "@/components/admin/user-manager";
 import { Section, Container } from "@/components/craft";
-import { Bookmark, FolderKanban, Settings2 } from "lucide-react";
+import { Bookmark, FolderKanban, Settings2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default async function AdminPage() {
   const categories = await getAllCategories();
   const bookmarks = await getAllBookmarks();
+  const users = await getAllUsers();
 
   return (
     <Section>
@@ -23,7 +25,7 @@ export default async function AdminPage() {
                 Admin Dashboard
               </h1>
               <p className="text-lg text-muted-foreground">
-                Manage your bookmarks and categories
+                Manage your bookmarks, categories, and users
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -49,13 +51,24 @@ export default async function AdminPage() {
                   <p className="text-sm text-muted-foreground">Categories</p>
                 </div>
               </Card>
+              <Card className="flex items-center gap-3 p-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <Users className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium leading-none">
+                    {users.length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Users</p>
+                </div>
+              </Card>
             </div>
           </div>
 
           {/* Tabs */}
           <Tabs defaultValue="bookmarks" className="space-y-6">
             <div className="flex items-center justify-between">
-              <TabsList className="grid w-[400px] grid-cols-2">
+              <TabsList className="grid w-[600px] grid-cols-3">
                 <TabsTrigger value="bookmarks" className="gap-2">
                   <Bookmark className="h-4 w-4" />
                   Bookmarks
@@ -63,6 +76,10 @@ export default async function AdminPage() {
                 <TabsTrigger value="categories" className="gap-2">
                   <FolderKanban className="h-4 w-4" />
                   Categories
+                </TabsTrigger>
+                <TabsTrigger value="users" className="gap-2">
+                  <Users className="h-4 w-4" />
+                  Users
                 </TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-2">
@@ -111,6 +128,20 @@ export default async function AdminPage() {
                 </div>
                 <div className="p-6">
                   <CategoryManager categories={categories} />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="users" className="space-y-4">
+              <div className="rounded-xl border bg-card">
+                <div className="border-b bg-muted/50 p-4">
+                  <h2 className="text-lg font-semibold">User Management</h2>
+                  <p className="text-sm text-muted-foreground">
+                    View and manage platform users
+                  </p>
+                </div>
+                <div className="p-6">
+                  <UserManager users={users} />
                 </div>
               </div>
             </TabsContent>
