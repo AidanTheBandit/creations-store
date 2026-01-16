@@ -65,12 +65,7 @@ const Header = () => {
     <header>
       <Container className="flex items-start justify-between gap-3">
         <Link href="/" className="transition-all hover:opacity-80">
-          <Image
-            src={Logo}
-            alt="Design Engineer Logo"
-            width={96}
-            height={39.68}
-          />
+           <h2 className="font-bold text-xl tracking-tight">{directory.name}</h2>
         </Link>
         <Subscribe />
       </Container>
@@ -86,30 +81,7 @@ const Footer = () => {
           <p>
             © {new Date().getFullYear()} {directory.name}.
           </p>
-          <p>
-            Created at{" "}
-            <a
-              className="underline transition-all hover:text-foreground"
-              href="https://9d8.dev"
-            >
-              9d8
-            </a>{" "}
-            by{" "}
-            <a
-              className="underline transition-all hover:text-foreground"
-              href="https://bridger.to"
-            >
-              Bridger
-            </a>{" "}
-            and{" "}
-            <a
-              className="underline transition-all hover:text-foreground"
-              href="https://cameron.so"
-            >
-              Cameron
-            </a>
-            .
-          </p>
+
         </div>
         <ThemeToggle />
       </Container>

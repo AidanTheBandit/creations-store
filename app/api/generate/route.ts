@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     ${JSON.stringify(parsedResults, null, 2)}`;
 
     const { text } = await generateText({
-      model: anthropic("claude-3-haiku-20240307"),
+      model: anthropic("claude-3-5-haiku-20241022"),
       messages: [
         {
           role: "user",
