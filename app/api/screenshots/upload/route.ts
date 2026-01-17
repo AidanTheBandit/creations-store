@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 10MB)
+    // Validate file size (max 10MB - ImgBB limit is 32MB)
     const MAX_SIZE = 10 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
@@ -26,48 +26,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Prepare FormData for catbox.moe
-    const catboxFormData = new FormData();
-    catboxFormData.append("reqtype", "fileupload");
-    catboxFormData.append("fileToUpload", file);
+    // Convert file to base64
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const base64 = buffer.toString('base64');
 
-    // Optional: Add userhash for album organization
-    const userHash = process.env.CATBOX_USERHASH;
-    if (userHash) {
-      catboxFormData.append("userhash", userHash);
+    // Get ImgBB API key
+    const apiKey = process.env.IMG_BB_API_KEY;
+    if (!apiKey || apiKey.trim() === '') {
+      console.error("IMG_BB_API_KEY is not set in environment variables");
+      return NextResponse.json(
+        {
+          error: "ImgBB API key not configured. Please:\n1. Go to https://api.imgbb.com/\n2. Get a free API key\n3. Add IMG_BB_API_KEY=your_key to your .env file\n4. Restart the dev server"
+        },
+        { status: 500 }
+      );
     }
 
-    // Upload to catbox.moe with timeout
+    // Upload to ImgBB
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
     try {
-      const response = await fetch("https://catbox.moe/user/api.php", {
+      const imgbbFormData = new FormData();
+      imgbbFormData.append("key", apiKey);
+      imgbbFormData.append("image", base64);
+
+      const response = await fetch("https://api.imgbb.com/1/upload", {
         method: "POST",
-        body: catboxFormData,
+        body: imgbbFormData,
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`Catbox.moe returned ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`ImgBB error: ${errorData.error?.message || response.statusText}`);
       }
 
-      // catbox.moe returns the URL as plain text
-      const url = await response.text();
+      const result = await response.json();
 
-      if (!url || url.trim().length === 0) {
-        throw new Error("Catbox.moe returned empty response");
+      console.log("ImgBB response:", result);
+
+      if (!result.success) {
+        throw new Error(result.error?.message || "ImgBB upload failed");
       }
 
       return NextResponse.json({
         success: true,
-        url: url.trim(),
+        url: result.data.url,
+        display_url: result.data.display_url,
+        delete_url: result.data.delete_url,
       });
     } catch (fetchError: any) {
       if (fetchError.name === 'AbortError') {
-        throw new Error("Upload timed out. Catbox.moe may be slow or unavailable.");
+        throw new Error("Upload timed out. Please try again.");
       }
       throw fetchError;
     }

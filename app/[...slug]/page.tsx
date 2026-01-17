@@ -3,9 +3,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { headers } from "next/headers";
 import Balancer from "react-wrap-balancer";
+import { cookies } from "next/headers";
 
 // Database Imports
-import { getCreationById, incrementBookmarkViews } from "@/lib/data";
+import { getCreationById, incrementCreationViews } from "@/lib/data";
 
 // Component Imports
 import { Section, Container } from "@/components/craft";
@@ -73,8 +74,20 @@ export default async function Page({ params }: Props) {
     notFound();
   }
 
-  // Increment views in the background
-  incrementBookmarkViews(bookmark.id).catch(console.error);
+  // Get a consistent session identifier for view tracking
+  // Use user ID if logged in, otherwise use IP address
+  const viewSessionId = bookmark.user?.id || (() => {
+    // Get IP address from headers for anonymous users
+    const headersList = headers();
+    const forwarded = headersList.get('x-forwarded-for');
+    const realIp = headersList.get('x-real-ip');
+    const ip = forwarded ? forwarded.split(',')[0].trim() : realIp || 'unknown';
+    // Create a simple hash from IP (in production you'd want this to be more secure)
+    return `anon_${ip}`;
+  })();
+
+  // Increment views in the background with rate limiting
+  incrementCreationViews(bookmark.id, viewSessionId).catch(console.error);
 
   // Get the full URL for sharing
   const headersList = await headers();
@@ -195,7 +208,32 @@ export default async function Page({ params }: Props) {
           </div>
 
           {/* Screenshot/Media Gallery */}
-          {bookmark.ogImage && (
+          {(bookmark.screenshots && bookmark.screenshots.length > 0) || bookmark.screenshotUrl ? (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold tracking-tight">Screenshots</h2>
+              {bookmark.screenshots && bookmark.screenshots.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {bookmark.screenshots.map((screenshot) => (
+                    <div key={screenshot.id} className="overflow-hidden rounded-2xl border-2 border-border bg-muted/50">
+                      <img
+                        src={screenshot.url}
+                        alt="Screenshot"
+                        className="w-full object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : bookmark.screenshotUrl ? (
+                <div className="overflow-hidden rounded-2xl border-2 border-border bg-muted/50">
+                  <img
+                    src={bookmark.screenshotUrl}
+                    alt="Screenshot"
+                    className="w-full object-cover"
+                  />
+                </div>
+              ) : null}
+            </div>
+          ) : bookmark.ogImage ? (
             <div className="space-y-4">
               <h2 className="text-2xl font-bold tracking-tight">Preview</h2>
               <div className="overflow-hidden rounded-2xl border-2 border-border bg-muted/50">
@@ -206,7 +244,7 @@ export default async function Page({ params }: Props) {
                 />
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Description Section */}
           <div className="space-y-4">

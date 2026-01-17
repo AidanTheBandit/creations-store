@@ -1,11 +1,12 @@
 import { db } from "@/db/client";
-import { creations, creationScreenshots, categories, users } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { creations, creationScreenshots, creationViews, categories, users } from "@/db/schema";
+import { eq, and, sql, gt } from "drizzle-orm";
 
 export type Creation = typeof creations.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type CreationScreenshot = typeof creationScreenshots.$inferSelect;
+export type CreationView = typeof creationViews.$inferSelect;
 
 // Legacy type aliases for backward compatibility during migration
 export type Bookmark = Creation;
@@ -29,7 +30,7 @@ export async function getAllCategories(): Promise<Category[]> {
   return await db.select().from(categories);
 }
 
-export async function getCreationById(id: number): Promise<(Creation & { category: Category | null; user: User | null }) | null> {
+export async function getCreationById(id: number): Promise<(Creation & { category: Category | null; user: User | null; screenshots: CreationScreenshot[] }) | null> {
   const results = await db
     .select()
     .from(creations)
@@ -42,10 +43,14 @@ export async function getCreationById(id: number): Promise<(Creation & { categor
     return null;
   }
 
+  // Fetch screenshots for this creation
+  const screenshots = await getCreationScreenshots(id);
+
   return {
     ...results[0].creations,
     category: results[0].categories,
     user: results[0].users,
+    screenshots,
   };
 }
 
@@ -69,13 +74,48 @@ export async function getCreationBySlug(slug: string): Promise<(Creation & { cat
   };
 }
 
-export async function incrementCreationViews(id: number): Promise<void> {
-  await db
-    .update(creations)
-    .set({
-      views: sql`COALESCE(${creations.views}, 0) + 1`,
-    })
-    .where(eq(creations.id, id));
+export async function incrementCreationViews(id: number, sessionId?: string): Promise<void> {
+  // Use a simple session identifier (IP-based or user-provided)
+  const session = sessionId || 'anonymous';
+
+  // Check if this session has viewed this creation in the last hour
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000); // 1 hour ago
+
+  const recentView = await db
+    .select()
+    .from(creationViews)
+    .where(
+      and(
+        eq(creationViews.creationId, id),
+        eq(creationViews.sessionId, session),
+        gt(creationViews.viewedAt, oneHourAgo)
+      )
+    )
+    .limit(1);
+
+  // Only increment if this session hasn't viewed in the last hour
+  if (recentView.length === 0) {
+    // Increment the view count
+    await db
+      .update(creations)
+      .set({
+        views: sql`COALESCE(${creations.views}, 0) + 1`,
+      })
+      .where(eq(creations.id, id));
+
+    // Record this view
+    await db.insert(creationViews).values({
+      creationId: id,
+      sessionId: session,
+      viewedAt: new Date(),
+    });
+
+    // Clean up old views (older than 7 days) to prevent table bloat
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    await db
+      .delete(creationViews)
+      .where(gt(creationViews.viewedAt, sevenDaysAgo));
+  }
 }
 
 // User-specific functions

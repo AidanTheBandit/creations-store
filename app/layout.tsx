@@ -77,18 +77,16 @@ const Header = async ({ session }: { session: any }) => {
               >
                 Dashboard
               </Link>
-              <form action="/api/auth/signout" method="POST">
-                <button
-                  type="submit"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md hover:bg-accent"
-                >
-                  Sign Out
-                </button>
-              </form>
+              <Link
+                href="/auth/signout"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md hover:bg-accent"
+              >
+                Sign Out
+              </Link>
             </>
           ) : (
             <Link
-              href="/api/auth/signin"
+              href="/auth/signin"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md hover:bg-accent"
             >
               Sign In with Discord

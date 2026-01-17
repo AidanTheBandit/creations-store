@@ -7,7 +7,8 @@ import { index } from "drizzle-orm/sqlite-core";
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
-  name: text("name").notNull(),
+  name: text("name").notNull(), // Display name
+  username: text("username"), // Discord username/handle
   password: text("password"), // Made optional for OAuth users
   bio: text("bio"),
   avatar: text("avatar"),
@@ -118,6 +119,16 @@ export const creationScreenshots = sqliteTable("creation_screenshots", {
   isMainIdx: index("screenshots_is_main_idx").on(screenshots.isMain),
 }));
 
+// Creation Views tracking table (to prevent view spam)
+export const creationViews = sqliteTable("creation_views", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  creationId: integer("creation_id").notNull().references(() => creations.id, { onDelete: "cascade" }),
+  sessionId: text("session_id").notNull(), // User session or IP address
+  viewedAt: integer("viewed_at", { mode: "timestamp" }).notNull(),
+}, (views) => ({
+  creationSessionIdx: index("views_creation_session_idx").on(views.creationId, views.sessionId),
+}));
+
 // Relations
 export const creationsRelations = relations(creations, ({ one, many }) => ({
   category: one(categories, {
@@ -168,6 +179,9 @@ export type NewCreation = typeof creations.$inferInsert;
 
 export type CreationScreenshot = typeof creationScreenshots.$inferSelect;
 export type NewCreationScreenshot = typeof creationScreenshots.$inferInsert;
+
+export type CreationView = typeof creationViews.$inferSelect;
+export type NewCreationView = typeof creationViews.$inferInsert;
 
 // Legacy type aliases for backward compatibility during migration
 export type Bookmark = Creation;

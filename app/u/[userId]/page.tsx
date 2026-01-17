@@ -39,6 +39,11 @@ export default async function UserProfilePage({ params }: Props) {
                     <h1 className="text-3xl font-bold">
                       {profile.name}
                     </h1>
+                    {profile.username && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        @{profile.username}
+                      </p>
+                    )}
                     {profile.bio && (
                       <p className="text-muted-foreground mt-2">
                         {profile.bio}

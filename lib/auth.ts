@@ -29,7 +29,8 @@ export const authOptions: NextAuthOptions = {
         // - global_name: User's display name (what they want to be called)
         // - username: Their actual username (e.g., "username" without discriminator)
         // - name: Usually fallback to global_name or username
-        const discordName = (profile as any).global_name || (profile as any).username || profile.name || "User";
+        const discordDisplayName = (profile as any).global_name || profile.name || "User";
+        const discordUsername = (profile as any).username || null;
         const discordId = (profile as any).id;
         const ADMIN_DISCORD_ID = "592732401856282638";
 
@@ -49,7 +50,8 @@ export const authOptions: NextAuthOptions = {
           // Update user info on each login
           await db.update(users)
             .set({
-              name: discordName,
+              name: discordDisplayName,
+              username: discordUsername,
               avatar: discordAvatar,
               updatedAt: new Date(),
             })
@@ -61,7 +63,8 @@ export const authOptions: NextAuthOptions = {
           await db.insert(users).values({
             id: userId,
             email: profile.email as string,
-            name: discordName,
+            name: discordDisplayName,
+            username: discordUsername,
             avatar: discordAvatar,
             isAdmin,
             password: "", // Not needed for OAuth
