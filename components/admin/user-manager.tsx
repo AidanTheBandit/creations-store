@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface User {
   id: string;

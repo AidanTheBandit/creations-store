@@ -14,6 +14,9 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
+  pages: {
+    signIn: "/auth/signin",
+  },
   callbacks: {
     async jwt({ token, account, profile }) {
       if (account && profile) {
@@ -27,11 +30,12 @@ export const authOptions: NextAuthOptions = {
         } else {
           // Create new user
           const userId = crypto.randomUUID();
+          const discordName = (profile as any).username || profile.name || "User";
           await db.insert(users).values({
             id: userId,
             email: profile.email as string,
-            name: profile.name as string,
-            avatar: profile.image as string,
+            name: discordName,
+            avatar: (profile as any).avatar || profile.image as string || null,
             password: "", // Not needed for OAuth
           });
           token.id = userId;
