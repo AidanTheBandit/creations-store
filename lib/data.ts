@@ -1,6 +1,6 @@
 import { db } from "@/db/client";
 import { creations, creationScreenshots, creationViews, categories, users } from "@/db/schema";
-import { eq, and, sql, gt } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 export type Creation = typeof creations.$inferSelect;
 export type Category = typeof categories.$inferSelect;

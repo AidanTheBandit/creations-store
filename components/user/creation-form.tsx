@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, ArrowLeft, Upload, X, Star, Trash2, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { Category } from "@/lib/data";
@@ -33,15 +32,12 @@ interface Creation {
   slug: string;
   url: string;
   description: string | null;
-  overview: string | null;
   iconUrl: string | null;
   ogImage: string | null;
   themeColor: string | null;
   author: string | null;
   screenshotUrl: string | null;
   categoryId: string | null;
-  isFavorite: boolean;
-  isArchived: boolean;
   status: "draft" | "published";
 }
 
@@ -71,15 +67,12 @@ export function CreationForm({
     slug: creation?.slug || "",
     url: creation?.url || "",
     description: creation?.description || "",
-    overview: creation?.overview || "",
     iconUrl: creation?.iconUrl || "",
     ogImage: creation?.ogImage || "",
     themeColor: creation?.themeColor || "#fe5000",
     author: creation?.author || username || "",
     screenshotUrl: creation?.screenshotUrl || "",
     categoryId: creation?.categoryId || "none",
-    isFavorite: creation?.isFavorite || false,
-    isArchived: creation?.isArchived || false,
     status: creation?.status || "draft",
   });
 
@@ -380,6 +373,32 @@ export function CreationForm({
               placeholder="Social platform"
             />
           </div>
+
+          {mode === "create" && (
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select
+                name="status"
+                value={formData.status}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, status: value as "draft" | "published" }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft - Not visible publicly</SelectItem>
+                  <SelectItem value="published">Published - Visible to everyone</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                {formData.status === "draft"
+                  ? "This creation will only be visible to you"
+                  : "This creation will be visible to everyone"}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -629,82 +648,6 @@ export function CreationForm({
             </div>
           )}
         </div>
-      </div>
-
-      {/* Additional Details */}
-      <div className="space-y-4 rounded-xl border bg-card p-6">
-        <h3 className="text-lg font-semibold">Additional Details</h3>
-
-        <div className="space-y-2">
-          <Label htmlFor="overview">Overview</Label>
-          <Textarea
-            id="overview"
-            name="overview"
-            value={formData.overview}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, overview: e.target.value }))
-            }
-            placeholder="Detailed overview or notes about this creation"
-            rows={5}
-          />
-        </div>
-
-        <div className="flex items-center gap-6">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="isFavorite"
-              name="isFavorite"
-              checked={formData.isFavorite}
-              onCheckedChange={(checked) =>
-                setFormData((prev) => ({ ...prev, isFavorite: checked as boolean }))
-              }
-              value="true"
-            />
-            <Label htmlFor="isFavorite" className="cursor-pointer">
-              Favorite
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="isArchived"
-              name="isArchived"
-              checked={formData.isArchived}
-              onCheckedChange={(checked) =>
-                setFormData((prev) => ({ ...prev, isArchived: checked as boolean }))
-              }
-              value="true"
-            />
-            <Label htmlFor="isArchived" className="cursor-pointer">
-              Archived
-            </Label>
-          </div>
-        </div>
-
-        {mode === "create" && (
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select
-              name="status"
-              value={formData.status}
-              onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, status: value as "draft" | "published" }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">Draft - Not visible publicly</SelectItem>
-                <SelectItem value="published">Published - Visible to everyone</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-sm text-muted-foreground">
-              {formData.status === "draft"
-                ? "This creation will only be visible to you"
-                : "This creation will be visible to everyone"}
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Actions */}
