@@ -1,5 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import DiscordProvider from "next-auth/providers/discord";
+import { getServerSession } from "next-auth";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -84,3 +85,9 @@ export const authOptions: NextAuthOptions = {
     },
   },
 };
+
+// Helper function to check if current user is admin
+export async function isAdmin(): Promise<boolean> {
+  const session = await getServerSession(authOptions);
+  return (session?.user as any)?.isAdmin === true;
+}
