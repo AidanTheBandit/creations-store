@@ -20,6 +20,42 @@ export type ActionState = {
   };
 };
 
+// Helper function to fetch metadata for bulk upload
+async function generateContent(url: string) {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3245'}/api/metadata?url=${encodeURIComponent(url)}`);
+
+    if (!response.ok) {
+      return { error: "Failed to fetch metadata" };
+    }
+
+    const metadata = await response.json();
+
+    if (metadata.error) {
+      return { error: metadata.error };
+    }
+
+    // Generate slug from title
+    const slug = generateSlug(metadata.title);
+
+    return {
+      title: metadata.title,
+      description: metadata.description,
+      url: metadata.url,
+      overview: "",
+      search_results: "",
+      iconUrl: metadata.favicon,
+      ogImage: metadata.ogImage,
+      slug,
+      error: null,
+    };
+  } catch (error) {
+    console.error("Error generating content:", error);
+    return { error: "Failed to generate content" };
+  }
+}
+
+
 type CreationData = {
   title: string;
   description: string;
@@ -506,11 +542,11 @@ export async function bulkUploadCreations(
           title: content.title,
           description: content.description,
           url: content.url,
-          overview: content.overview,
-          search_results: content.search_results,
-          iconUrl: content.iconUrl,
-          ogImage: content.ogImage,
-          slug: content.slug,
+          overview: content.overview || "",
+          search_results: content.search_results || "",
+          iconUrl: content.iconUrl || "",
+          ogImage: content.ogImage || "",
+          slug: content.slug || generateSlug(content.title),
           themeColor: "",
           author: "",
           screenshotUrl: "",
