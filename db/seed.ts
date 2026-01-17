@@ -1,5 +1,6 @@
 import { db } from "./client";
 import { creations, categories } from "./schema";
+import { eq } from "drizzle-orm";
 
 async function seed() {
   console.log("🌱 Seeding database...");
@@ -107,8 +108,22 @@ async function seed() {
 
   const createdCategories = await Promise.all(
     categoryData.map(async (category) => {
-      const [result] = await db.insert(categories).values(category).returning();
-      return result;
+      // Try to insert first, if fails update existing
+      try {
+        const [result] = await db
+          .insert(categories)
+          .values(category)
+          .returning();
+        return result;
+      } catch (error) {
+        // If insert fails, update existing record
+        const [result] = await db
+          .update(categories)
+          .set(category)
+          .where(eq(categories.id, category.id))
+          .returning();
+        return result;
+      }
     }),
   );
 
@@ -186,12 +201,40 @@ async function seed() {
       slug: "dribbble",
       description: "Discover the world's top designers & creatives",
       categoryId: createdCategories[10].id, // design
-      favicon: "https://cdn.dribbble.com/assets/favicon-b38525134603b9513174ec887944bde1a869eb6cd414f4d640ee48ab2a15a26b.ico",
-      ogImage: "https://cdn.dribbble.com/assets/art-banners/manifest-banner-1-a9f45a6adc987f0f59d08a818ffe1832447d7d4fef78fefdda4f085f6dac6660.png",
-      overview: "Dribbble is the leading destination to find & showcase creative work and home to the world's best design professionals.",
-      isFavorite: false
+      favicon:
+        "https://cdn.dribbble.com/assets/favicon-b38525134603b9513174ec887944bde1a869eb6cd414f4d640ee48ab2a15a26b.ico",
+      ogImage:
+        "https://cdn.dribbble.com/assets/art-banners/manifest-banner-1-a9f45a6adc987f0f59d08a818ffe1832447d7d4fef78fefdda4f085f6dac6660.png",
+      overview:
+        "Dribbble is the leading destination to find & showcase creative work and home to the world's best design professionals.",
+      isFavorite: false,
     },
   ];
+
+  const createdBookmarks = await Promise.all(
+    bookmarkData.map(async (bookmark) => {
+      // Try to insert first, if fails update existing record
+      try {
+        const [result] = await db
+          .insert(creations)
+          .values(bookmark)
+          .returning();
+        return result;
+      } catch (error) {
+        // If insert fails, update existing record by slug
+        const [result] = await db
+          .update(creations)
+          .set(bookmark)
+          .where(eq(creations.slug, bookmark.slug))
+          .returning();
+        return result;
+      }
+    }),
+  );
+
+  console.log(`Created ${createdBookmarks.length} bookmarks`);
+  console.log("✅ Seeding complete!");
+}
 
 seed().catch((error) => {
   console.error("Error seeding database:", error);

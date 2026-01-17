@@ -6,6 +6,6 @@ export default {
   out: "./migrations",
   dialect: "sqlite",
   dbCredentials: {
-    url: process.env.TURSO_DATABASE_URL!,
+    url: process.env.TURSO_DATABASE_URL || "./local.db",
   },
 } satisfies Config;
