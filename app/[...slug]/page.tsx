@@ -78,14 +78,23 @@ export default async function Page({ params }: Props) {
 
   // Get a consistent session identifier for view tracking
   // Use user ID if logged in, otherwise use IP address
-  const viewSessionId = bookmark.user?.id || (() => {
+  let viewSessionId: string;
+  if (bookmark.user?.id) {
+    viewSessionId = `user_${bookmark.user.id}`;
+  } else {
     // Get IP address from headers for anonymous users
     const forwarded = headersList.get('x-forwarded-for');
     const realIp = headersList.get('x-real-ip');
-    const ip = forwarded ? forwarded.split(',')[0].trim() : realIp || 'unknown';
-    // Create a simple hash from IP (in production you'd want this to be more secure)
-    return `anon_${ip}`;
-  })();
+    const ip = forwarded ? forwarded.split(',')[0].trim() : realIp || 'localhost';
+
+    // For local development, normalize common local IPs
+    const normalizedIp = (ip === '::1' || ip === '127.0.0.1' || ip === 'localhost') ? 'local_dev' : ip;
+
+    viewSessionId = `anon_${normalizedIp}`;
+
+    // Log for debugging
+    console.log(`[View Tracking] Session ID: ${viewSessionId}, Creation ID: ${id}`);
+  }
 
   // Increment views in the background with rate limiting
   incrementCreationViews(bookmark.id, viewSessionId).catch(console.error);

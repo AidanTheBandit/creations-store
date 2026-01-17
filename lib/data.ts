@@ -78,44 +78,59 @@ export async function incrementCreationViews(id: number, sessionId?: string): Pr
   // Use a simple session identifier (IP-based or user-provided)
   const session = sessionId || 'anonymous';
 
-  // Check if this session has viewed this creation in the last hour
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000); // 1 hour ago
+  console.log(`[View Tracking] Creation: ${id}, Session: ${session}`);
 
-  const recentView = await db
-    .select()
-    .from(creationViews)
-    .where(
-      and(
-        eq(creationViews.creationId, id),
-        eq(creationViews.sessionId, session),
-        gt(creationViews.viewedAt, oneHourAgo)
-      )
-    )
-    .limit(1);
+  // Use raw SQL to reliably check if this session viewed this creation in the last hour
+  const oneHourAgo = Math.floor(Date.now() / 1000) - 3600; // Unix timestamp, 1 hour ago
 
-  // Only increment if this session hasn't viewed in the last hour
-  if (recentView.length === 0) {
+  const checkResult = await db.run(sql`
+    SELECT id, viewed_at
+    FROM creation_views
+    WHERE creation_id = ${id}
+      AND session_id = ${session}
+      AND viewed_at > ${oneHourAgo}
+    LIMIT 1
+  `);
+
+  const hasRecentView = checkResult.rows.length > 0;
+
+  console.log(`[View Tracking] Recent view exists: ${hasRecentView}`);
+
+  if (!hasRecentView) {
+    console.log(`[View Tracking] ✅ Counting new view`);
+
     // Increment the view count
-    await db
-      .update(creations)
-      .set({
-        views: sql`COALESCE(${creations.views}, 0) + 1`,
-      })
-      .where(eq(creations.id, id));
+    await db.run(sql`
+      UPDATE creations
+      SET views = COALESCE(views, 0) + 1
+      WHERE id = ${id}
+    `);
 
     // Record this view
-    await db.insert(creationViews).values({
-      creationId: id,
-      sessionId: session,
-      viewedAt: new Date(),
-    });
+    const now = Math.floor(Date.now() / 1000);
+    await db.run(sql`
+      INSERT INTO creation_views (creation_id, session_id, viewed_at)
+      VALUES (${id}, ${session}, ${now})
+    `);
 
-    // Clean up old views (older than 7 days) to prevent table bloat
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    await db
-      .delete(creationViews)
-      .where(gt(creationViews.viewedAt, sevenDaysAgo));
+    console.log(`[View Tracking] ✅ View recorded`);
+  } else {
+    console.log(`[View Tracking] ⏭️ Skipped (rate limited)`);
   }
+
+  // Clean up old views (older than 7 days) - run this without blocking
+  setImmediate(async () => {
+    try {
+      const sevenDaysAgo = Math.floor(Date.now() / 1000) - (7 * 24 * 60 * 60);
+      await db.run(sql`
+        DELETE FROM creation_views
+        WHERE viewed_at < ${sevenDaysAgo}
+      `);
+      console.log(`[View Tracking] 🧹 Cleaned old views`);
+    } catch (error) {
+      // Silently fail - cleanup isn't critical
+    }
+  });
 }
 
 // User-specific functions
