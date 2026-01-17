@@ -70,7 +70,7 @@ export function AppSidebar({ categories, className }: AppSidebarProps) {
     });
   }, SEARCH_DEBOUNCE_MS);
 
-  const isFiltered = searchParams.search || searchParams.category;
+  const isFiltered = searchParams.get("search") || searchParams.get("category");
 
   return (
     <aside className={cn("flex h-[calc(100vh-3rem)] w-64 flex-col border-r bg-background", className)}>

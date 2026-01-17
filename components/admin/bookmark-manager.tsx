@@ -61,8 +61,14 @@ interface Bookmark {
   overview: string | null;
   search_results: string | null;
   favicon: string | null;
+  iconUrl: string | null;
+  themeColor: string | null;
+  author: string | null;
+  screenshotUrl: string | null;
   ogImage: string | null;
   categoryId: string | null;
+  userId: string | null;
+  status: string;
   isFavorite: boolean;
   isArchived: boolean;
   createdAt: Date;
