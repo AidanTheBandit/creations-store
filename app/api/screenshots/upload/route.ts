@@ -37,27 +37,46 @@ export async function POST(request: NextRequest) {
       catboxFormData.append("userhash", userHash);
     }
 
-    // Upload to catbox.moe
-    const response = await fetch("https://catbox.moe/user/api.php", {
-      method: "POST",
-      body: catboxFormData,
-    });
+    // Upload to catbox.moe with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-    if (!response.ok) {
-      throw new Error("Failed to upload to catbox.moe");
+    try {
+      const response = await fetch("https://catbox.moe/user/api.php", {
+        method: "POST",
+        body: catboxFormData,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Catbox.moe returned ${response.status}`);
+      }
+
+      // catbox.moe returns the URL as plain text
+      const url = await response.text();
+
+      if (!url || url.trim().length === 0) {
+        throw new Error("Catbox.moe returned empty response");
+      }
+
+      return NextResponse.json({
+        success: true,
+        url: url.trim(),
+      });
+    } catch (fetchError: any) {
+      if (fetchError.name === 'AbortError') {
+        throw new Error("Upload timed out. Catbox.moe may be slow or unavailable.");
+      }
+      throw fetchError;
     }
-
-    // catbox.moe returns the URL as plain text
-    const url = await response.text();
-
-    return NextResponse.json({
-      success: true,
-      url: url.trim(),
-    });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Screenshot upload error:", error);
     return NextResponse.json(
-      { error: "Failed to upload screenshot" },
+      {
+        error: error.message || "Failed to upload screenshot. Please try again."
+      },
       { status: 500 }
     );
   }

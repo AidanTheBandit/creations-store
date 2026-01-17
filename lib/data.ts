@@ -125,7 +125,7 @@ export async function getUserById(userId: string): Promise<User | null> {
   return results || null;
 }
 
-export async function getAllUsers(): Promise<(User & { bookmarkCount: number })[]> {
+export async function getAllUsers(): Promise<(User & { creationCount: number })[]> {
   const allUsers = await db.select().from(users);
 
   const usersWithCounts = await Promise.all(
@@ -137,7 +137,7 @@ export async function getAllUsers(): Promise<(User & { bookmarkCount: number })[
 
       return {
         ...user,
-        bookmarkCount: userCreations.length,
+        creationCount: userCreations.length,
       };
     })
   );

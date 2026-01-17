@@ -30,13 +30,13 @@ export default function AdminHeader() {
               href="/admin"
               className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
             >
-              Add Bookmark
+              Add Creation
             </Link>
             <Link
               href="/admin/manage"
               className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
             >
-              Manage Bookmarks
+              Manage Creations
             </Link>
           </nav>
           <button

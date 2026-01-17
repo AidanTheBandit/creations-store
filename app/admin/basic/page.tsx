@@ -6,20 +6,20 @@ import AdminHeader from "@/components/admin/admin-header";
 export default function AdminPage() {
   const [formData, setFormData] = useState({
     url: "",
+    title: "",
     slug: "",
-    name: "",
     description: "",
-    category: "",
-    use_case: "",
-    how_to_use: "",
+    categoryId: "",
     overview: "",
-    screenshot_url: "",
+    iconUrl: "",
+    themeColor: "#fe5000",
+    author: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch("/api/bookmarks", {
+      const response = await fetch("/api/creations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -28,26 +28,26 @@ export default function AdminPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to add bookmark");
+        throw new Error("Failed to add creation");
       }
 
       // Clear form after successful submission
       setFormData({
         url: "",
+        title: "",
         slug: "",
-        name: "",
         description: "",
-        category: "",
-        use_case: "",
-        how_to_use: "",
+        categoryId: "",
         overview: "",
-        screenshot_url: "",
+        iconUrl: "",
+        themeColor: "#fe5000",
+        author: "",
       });
 
-      alert("Bookmark added successfully!");
+      alert("Creation added successfully!");
     } catch (error) {
-      console.error("Error adding bookmark:", error);
-      alert("Failed to add bookmark. Please try again.");
+      console.error("Error adding creation:", error);
+      alert("Failed to add creation. Please try again.");
     }
   };
 
@@ -62,7 +62,7 @@ export default function AdminPage() {
     <>
       <AdminHeader />
       <div className="mx-auto max-w-4xl p-6">
-        <h1 className="mb-6 text-3xl font-bold">Add New Bookmark</h1>
+        <h1 className="mb-6 text-3xl font-bold">Add New Creation</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="url" className="mb-1 block text-sm font-medium">
@@ -215,7 +215,7 @@ export default function AdminPage() {
             type="submit"
             className="rounded-md bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
           >
-            Add Bookmark
+            Add Creation
           </button>
         </form>
       </div>

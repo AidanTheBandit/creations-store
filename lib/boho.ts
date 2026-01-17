@@ -10,7 +10,7 @@ export const boho = bohoAuth({
       "/admin",
       "/admin/basic",
       "/admin/manage",
-      "/api/bookmarks",
+      "/api/creations",
       "/api/metadata",
     ],
     redirectPath: "/admin",
