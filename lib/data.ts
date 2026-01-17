@@ -29,11 +29,12 @@ export async function getAllCategories(): Promise<Category[]> {
   return await db.select().from(categories);
 }
 
-export async function getCreationById(id: number): Promise<(Creation & { category: Category | null }) | null> {
+export async function getCreationById(id: number): Promise<(Creation & { category: Category | null; user: User | null }) | null> {
   const results = await db
     .select()
     .from(creations)
     .leftJoin(categories, eq(creations.categoryId, categories.id))
+    .leftJoin(users, eq(creations.userId, users.id))
     .where(eq(creations.id, id))
     .limit(1);
 
@@ -44,6 +45,7 @@ export async function getCreationById(id: number): Promise<(Creation & { categor
   return {
     ...results[0].creations,
     category: results[0].categories,
+    user: results[0].users,
   };
 }
 
@@ -71,7 +73,7 @@ export async function incrementCreationViews(id: number): Promise<void> {
   await db
     .update(creations)
     .set({
-      views: sql`${creations.views} + 1`,
+      views: sql`COALESCE(${creations.views}, 0) + 1`,
     })
     .where(eq(creations.id, id));
 }

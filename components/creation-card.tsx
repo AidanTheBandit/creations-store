@@ -1,10 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import { Star, Archive, ExternalLink, AppWindow } from "lucide-react";
 import { Button } from "./ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { Star, Archive, AppWindow, Download } from "lucide-react";
 
 interface CreationCardProps {
   creation: {
@@ -41,167 +50,190 @@ export interface BookmarkCardProps extends CreationCardProps {
 }
 
 export const CreationCard = ({ creation }: CreationCardProps) => {
-  const detailsUrl = `/${creation.slug}`;
-  const externalUrl = creation.url;
+  const [installDialogOpen, setInstallDialogOpen] = useState(false);
 
   // Use iconUrl first, then fallback to favicon, then ogImage
   const iconSrc = creation.iconUrl || creation.favicon || creation.ogImage;
 
+  // Prepare QR code data (without screenshotUrl)
+  const qrCodeData = {
+    title: creation.title,
+    url: creation.url,
+    description: creation.description || "",
+    iconUrl: creation.iconUrl || "",
+    themeColor: creation.themeColor || "",
+    author: creation.author || "",
+  };
+
+  // Create URL in format: id-slug (for SEO and handling duplicates)
+  const detailsUrl = `/${creation.id}-${creation.slug}`;
+
   return (
-    <div
-      className={cn(
-        "not-prose group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:shadow-xl hover:-translate-y-1",
-        creation.isArchived && "opacity-75 hover:opacity-100",
-      )}
-      style={creation.themeColor ? {
-        borderColor: `${creation.themeColor}33`,
-      } : undefined}
-    >
-      {/* App Icon Header */}
-      <div
-        className="relative bg-gradient-to-br from-muted/50 to-muted p-6 pb-4"
-        style={creation.themeColor ? {
-          background: `linear-gradient(to bottom right, ${creation.themeColor}15, transparent)`,
-        } : undefined}
-      >
-        <div className="flex items-start justify-between">
-          {/* App Icon */}
-          <Link
-            href={detailsUrl}
-            className="flex items-center justify-center rounded-2xl border-2 border-border bg-background p-3 shadow-sm transition-all hover:scale-105 hover:border-primary/50"
-            style={creation.themeColor ? {
-              borderColor: `${creation.themeColor}44`,
-            } : undefined}
-            aria-label={`View details for ${creation.title}`}
-          >
-            {iconSrc ? (
-              <img
-                src={iconSrc}
-                alt={`${creation.title} icon`}
-                width={64}
-                height={64}
-                className="h-16 w-16 rounded-xl"
-              />
-            ) : creation.ogImage ? (
-              <img
-                src={creation.ogImage}
-                alt={`${creation.title} preview`}
-                width={64}
-                height={64}
-                className="h-16 w-16 rounded-xl object-cover"
-              />
-            ) : (
-              <AppWindow
-                className="h-16 w-16 text-muted-foreground"
-                aria-hidden="true"
-              />
-            )}
-          </Link>
-
-          {/* Status Badges */}
-          <div className="flex gap-1.5">
-            {creation.isFavorite && (
-              <Badge
-                variant="secondary"
-                className="bg-yellow-500/10 text-yellow-500 backdrop-blur-sm"
-              >
-                <Star className="h-3 w-3" aria-label="Featured" />
-              </Badge>
-            )}
-            {creation.isArchived && (
-              <Badge
-                variant="secondary"
-                className="bg-gray-500/10 text-gray-500 backdrop-blur-sm"
-              >
-                <Archive className="h-3 w-3" aria-label="Archived" />
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        {/* Category Badge */}
-        {creation.category && (
-          <div className="mt-3">
-            <Badge
-              variant="outline"
-              className="border-0 bg-background/50 backdrop-blur-sm text-xs font-medium"
-              style={creation.category.color ? {
-                backgroundColor: `${creation.category.color}22`,
-                color: creation.category.color,
+    <>
+      <Link href={detailsUrl} className="block h-full">
+        <div
+          className={cn(
+            "not-prose group relative flex flex-col overflow-hidden rounded-2xl border-2 bg-card transition-all duration-300 hover:shadow-xl hover:-translate-y-1 h-full",
+            creation.isArchived && "opacity-75 hover:opacity-100",
+          )}
+          style={creation.themeColor ? {
+            borderColor: creation.themeColor,
+          } : undefined}
+        >
+        {/* App Icon Header */}
+        <div
+          className="relative p-6 pb-4"
+          style={creation.themeColor ? {
+            background: `linear-gradient(135deg, ${creation.themeColor}15 0%, ${creation.themeColor}05 100%)`,
+          } : undefined}
+        >
+          <div className="flex items-start justify-between">
+            {/* App Icon */}
+            <div
+              className="flex items-center justify-center rounded-2xl border-2 bg-background p-3 shadow-sm"
+              style={creation.themeColor ? {
+                borderColor: creation.themeColor,
               } : undefined}
             >
-              {creation.category.name}
-            </Badge>
-          </div>
-        )}
-      </div>
-
-      {/* App Info Section */}
-      <div className="flex flex-1 flex-col p-4 space-y-3">
-        {/* Title and Description */}
-        <div className="space-y-1">
-          <h2 className="font-semibold text-lg leading-tight tracking-tight group-hover:text-primary transition-colors">
-            {creation.title}
-          </h2>
-          {/* Author or User */}
-          {(creation.author || creation.user) && (
-            <span className="text-sm text-muted-foreground">
-              {creation.author ? `by ${creation.author}` : null}
-              {creation.author && creation.user ? " • " : null}
-              {creation.user && (
-                <Link
-                  href={`/u/${creation.user.id}`}
-                  className="hover:text-foreground transition-colors"
-                >
-                  added by {creation.user.name}
-                </Link>
+              {iconSrc ? (
+                <img
+                  src={iconSrc}
+                  alt={`${creation.title} icon`}
+                  width={64}
+                  height={64}
+                  className="h-16 w-16 rounded-xl"
+                />
+              ) : creation.ogImage ? (
+                <img
+                  src={creation.ogImage}
+                  alt={`${creation.title} preview`}
+                  width={64}
+                  height={64}
+                  className="h-16 w-16 rounded-xl object-cover"
+                />
+              ) : (
+                <AppWindow
+                  className="h-16 w-16 text-muted-foreground"
+                  aria-hidden="true"
+                />
               )}
-            </span>
+            </div>
+
+            {/* Status Badges */}
+            <div className="flex gap-1.5">
+              {creation.isFavorite && (
+                <Badge
+                  variant="secondary"
+                  className="bg-yellow-500/10 text-yellow-500 backdrop-blur-sm"
+                >
+                  <Star className="h-3 w-3" aria-label="Featured" />
+                </Badge>
+              )}
+              {creation.isArchived && (
+                <Badge
+                  variant="secondary"
+                  className="bg-gray-500/10 text-gray-500 backdrop-blur-sm"
+                >
+                  <Archive className="h-3 w-3" aria-label="Archived" />
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Category Badge */}
+          {creation.category && (
+            <div className="mt-3">
+              <Badge
+                variant="outline"
+                className="border-0 bg-background/50 backdrop-blur-sm text-xs font-medium"
+                style={creation.category.color ? {
+                  backgroundColor: `${creation.category.color}22`,
+                  color: creation.category.color,
+                } : undefined}
+              >
+                {creation.category.name}
+              </Badge>
+            </div>
           )}
         </div>
 
-        {/* Description */}
-        {creation.description && (
-          <p className="line-clamp-2 text-sm text-muted-foreground">
-            {creation.description}
-          </p>
-        )}
+        {/* App Info Section */}
+        <div className="flex flex-1 flex-col p-4 space-y-3">
+          {/* Title and Description */}
+          <div className="space-y-1">
+            <h2 className="font-semibold text-lg leading-tight tracking-tight" style={creation.themeColor ? {
+              color: creation.themeColor,
+            } : undefined}>
+              {creation.title}
+            </h2>
+            {/* Author or User */}
+            {(creation.author || creation.user) && (
+              <span className="text-sm text-muted-foreground">
+                {creation.author ? `by ${creation.author}` : null}
+                {creation.author && creation.user ? " • " : null}
+                {creation.user && (
+                  <span className="hover:text-foreground transition-colors">
+                    added by {creation.user.name}
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-2 pt-2">
-          <Button
-            variant="default"
-            size="sm"
-            className="flex-1 font-medium"
-            style={creation.themeColor ? {
-              backgroundColor: creation.themeColor,
-            } : undefined}
-            asChild
-          >
-            <Link href={detailsUrl}>View</Link>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="group/link flex-1 font-medium"
-            style={creation.themeColor ? {
-              borderColor: `${creation.themeColor}66`,
-            } : undefined}
-            asChild
-          >
-            <Link
-              href={externalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-1.5"
+          {/* Description */}
+          {creation.description && (
+            <p className="line-clamp-2 text-sm text-muted-foreground">
+              {creation.description}
+            </p>
+          )}
+
+          {/* Install Button */}
+          <div className="pt-2">
+            <Button
+              variant="default"
+              size="sm"
+              className="w-full font-medium"
+              style={creation.themeColor ? {
+                backgroundColor: creation.themeColor,
+              } : undefined}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setInstallDialogOpen(true);
+              }}
             >
-              Visit
-              <ExternalLink className="h-3.5 w-3.5 transition-transform group-hover/link:translate-x-0.5" />
-            </Link>
-          </Button>
+              <Download className="h-4 w-4 mr-2" />
+              Install
+            </Button>
+          </div>
         </div>
-      </div>
-    </div>
+        </div>
+      </Link>
+
+      {/* Install Dialog with QR Code */}
+      <Dialog open={installDialogOpen} onOpenChange={setInstallDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Install {creation.title}</DialogTitle>
+            <DialogDescription>
+              Scan this QR code to install this creation
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center space-y-4 py-4">
+            <div className="rounded-lg border-2 p-6 bg-white">
+              <QRCodeSVG
+                value={JSON.stringify(qrCodeData)}
+                size={350}
+                level={"M"}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground text-center">
+              Point your R1 camera at the QR code to install
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

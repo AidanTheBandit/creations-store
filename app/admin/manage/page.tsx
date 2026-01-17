@@ -5,15 +5,17 @@ import AdminHeader from "@/components/admin/admin-header";
 import Link from "next/link";
 
 interface Creation {
+  id: number;
   url: string;
   slug: string;
-  name: string;
+  title: string;
   description: string | null;
-  category: string | null;
-  use_case: string | null;
-  how_to_use: string | null;
+  categoryId: string | null;
   overview: string | null;
-  screenshot_url: string | null;
+  iconUrl: string | null;
+  themeColor: string | null;
+  author: string | null;
+  screenshotUrl: string | null;
 }
 
 export default function ManageCreations() {
@@ -53,12 +55,11 @@ export default function ManageCreations() {
     const searchLower = searchValue.toLowerCase();
     const filtered = creations.filter((creation) => {
       return (
-        creation.name.toLowerCase().includes(searchLower) ||
+        creation.title.toLowerCase().includes(searchLower) ||
         creation.url.toLowerCase().includes(searchLower) ||
         creation.description?.toLowerCase().includes(searchLower) ||
-        creation.category?.toLowerCase().includes(searchLower) ||
-        creation.use_case?.toLowerCase().includes(searchLower) ||
-        creation.overview?.toLowerCase().includes(searchLower)
+        creation.overview?.toLowerCase().includes(searchLower) ||
+        creation.author?.toLowerCase().includes(searchLower)
       );
     });
     setFilteredCreations(filtered);
@@ -165,12 +166,12 @@ export default function ManageCreations() {
         <div className="grid gap-4">
           {filteredCreations.map((creation) => (
             <div
-              key={creation.url}
+              key={creation.id}
               className="rounded-lg border p-4 shadow-sm transition-shadow hover:shadow-md"
             >
               <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold">{creation.name}</h2>
+                <div className="flex-1">
+                  <h2 className="text-xl font-semibold">{creation.title}</h2>
                   <a
                     href={creation.url}
                     target="_blank"
@@ -182,18 +183,31 @@ export default function ManageCreations() {
                   {creation.description && (
                     <p className="mt-2 text-gray-600">{creation.description}</p>
                   )}
-                  {creation.category && (
+                  {creation.categoryId && (
                     <p className="mt-1 text-sm text-gray-500">
-                      Category: {creation.category}
+                      Category ID: {creation.categoryId}
+                    </p>
+                  )}
+                  {creation.author && (
+                    <p className="mt-1 text-sm text-gray-500">
+                      Author: {creation.author}
                     </p>
                   )}
                 </div>
-                <button
-                  onClick={() => handleDelete(creation.url)}
-                  className="ml-4 text-red-500 transition-colors hover:text-red-700"
-                >
-                  Delete
-                </button>
+                <div className="ml-4 flex gap-2">
+                  <Link
+                    href={`/dashboard/edit/${creation.id}`}
+                    className="rounded-md bg-blue-500 px-3 py-1 text-white transition-colors hover:bg-blue-600"
+                  >
+                    Edit
+                  </Link>
+                  <button
+                    onClick={() => handleDelete(creation.url)}
+                    className="rounded-md bg-red-500 px-3 py-1 text-white transition-colors hover:bg-red-600"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           ))}

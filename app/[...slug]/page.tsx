@@ -1,15 +1,17 @@
 // Next Imports
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { headers } from "next/headers";
 import Balancer from "react-wrap-balancer";
 
 // Database Imports
-import { getBookmarkBySlug, incrementBookmarkViews } from "@/lib/data";
+import { getCreationById, incrementBookmarkViews } from "@/lib/data";
 
 // Component Imports
 import { Section, Container } from "@/components/craft";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CreationActions } from "@/components/creation-actions";
 import { ExternalLink, Calendar, AppWindow, User, Eye } from "lucide-react";
 
 // Metadata
@@ -17,14 +19,18 @@ import { Metadata, ResolvingMetadata } from "next";
 import Markdown from "react-markdown";
 
 type Props = {
-  params: { slug: string };
+  params: { slug: string[] };
 };
 
 export async function generateMetadata(
   { params }: Props,
   parent: ResolvingMetadata,
 ): Promise<Metadata> {
-  const bookmark = await getBookmarkBySlug(params.slug);
+  // Parse id from the URL (format: id-slug)
+  const slugParam = params.slug.join('/');
+  const id = parseInt(slugParam.split('-')[0]);
+
+  const bookmark = await getCreationById(id);
 
   if (!bookmark) {
     notFound();
@@ -57,7 +63,11 @@ export async function generateMetadata(
 }
 
 export default async function Page({ params }: Props) {
-  const bookmark = await getBookmarkBySlug(params.slug);
+  // Parse id from the URL (format: id-slug)
+  const slugParam = params.slug.join('/');
+  const id = parseInt(slugParam.split('-')[0]);
+
+  const bookmark = await getCreationById(id);
 
   if (!bookmark) {
     notFound();
@@ -65,6 +75,12 @@ export default async function Page({ params }: Props) {
 
   // Increment views in the background
   incrementBookmarkViews(bookmark.id).catch(console.error);
+
+  // Get the full URL for sharing
+  const headersList = await headers();
+  const host = headersList.get('host') || '';
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+  const pageUrl = `${protocol}://${host}/${slugParam}`;
 
   return (
     <Section>
@@ -136,31 +152,15 @@ export default async function Page({ params }: Props) {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    size="lg"
-                    className="flex-1 sm:flex-none"
-                    asChild
-                  >
-                    <Link
-                      href={bookmark.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group gap-2"
-                    >
-                      Get
-                      <ExternalLink className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
-                    </Link>
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="flex-1 sm:flex-none"
-                    asChild
-                  >
-                    <Link href="/">Share</Link>
-                  </Button>
-                </div>
+                <CreationActions
+                  title={bookmark.title}
+                  url={bookmark.url}
+                  description={bookmark.description}
+                  iconUrl={bookmark.iconUrl}
+                  themeColor={bookmark.themeColor}
+                  author={bookmark.author}
+                  pageUrl={pageUrl}
+                />
               </div>
             </div>
 
@@ -255,6 +255,10 @@ export default async function Page({ params }: Props) {
                   {bookmark.overview}
                 </Markdown>
               </div>
+            ) : bookmark.description ? (
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                {bookmark.description}
+              </p>
             ) : (
               <p className="text-muted-foreground">
                 No description available for this creation.

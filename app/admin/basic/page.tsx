@@ -80,32 +80,32 @@ export default function AdminPage() {
           </div>
 
           <div>
-            <label htmlFor="slug" className="mb-1 block text-sm font-medium">
-              Slug *
+            <label htmlFor="title" className="mb-1 block text-sm font-medium">
+              Title *
             </label>
             <input
               type="text"
-              id="slug"
-              name="slug"
+              id="title"
+              name="title"
               required
-              value={formData.slug}
+              value={formData.title}
               onChange={handleChange}
               className="w-full rounded-md border p-2"
             />
           </div>
 
           <div>
-            <label htmlFor="name" className="mb-1 block text-sm font-medium">
-              Name *
+            <label htmlFor="slug" className="mb-1 block text-sm font-medium">
+              Slug
             </label>
             <input
               type="text"
-              id="name"
-              name="name"
-              required
-              value={formData.name}
+              id="slug"
+              name="slug"
+              value={formData.slug}
               onChange={handleChange}
               className="w-full rounded-md border p-2"
+              placeholder="Auto-generated from title if empty"
             />
           </div>
 
@@ -128,52 +128,19 @@ export default function AdminPage() {
 
           <div>
             <label
-              htmlFor="category"
+              htmlFor="categoryId"
               className="mb-1 block text-sm font-medium"
             >
-              Category
+              Category ID
             </label>
             <input
               type="text"
-              id="category"
-              name="category"
-              value={formData.category}
+              id="categoryId"
+              name="categoryId"
+              value={formData.categoryId}
               onChange={handleChange}
               className="w-full rounded-md border p-2"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="use_case"
-              className="mb-1 block text-sm font-medium"
-            >
-              Use Case
-            </label>
-            <textarea
-              id="use_case"
-              name="use_case"
-              value={formData.use_case}
-              onChange={handleChange}
-              className="w-full rounded-md border p-2"
-              rows={3}
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="how_to_use"
-              className="mb-1 block text-sm font-medium"
-            >
-              How to Use
-            </label>
-            <textarea
-              id="how_to_use"
-              name="how_to_use"
-              value={formData.how_to_use}
-              onChange={handleChange}
-              className="w-full rounded-md border p-2"
-              rows={3}
+              placeholder="e.g., ai-tools, productivity"
             />
           </div>
 
@@ -196,16 +163,50 @@ export default function AdminPage() {
 
           <div>
             <label
-              htmlFor="screenshot_url"
+              htmlFor="iconUrl"
               className="mb-1 block text-sm font-medium"
             >
-              Screenshot URL
+              Icon URL
             </label>
             <input
               type="url"
-              id="screenshot_url"
-              name="screenshot_url"
-              value={formData.screenshot_url}
+              id="iconUrl"
+              name="iconUrl"
+              value={formData.iconUrl}
+              onChange={handleChange}
+              className="w-full rounded-md border p-2"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="themeColor"
+              className="mb-1 block text-sm font-medium"
+            >
+              Theme Color
+            </label>
+            <input
+              type="color"
+              id="themeColor"
+              name="themeColor"
+              value={formData.themeColor}
+              onChange={handleChange}
+              className="w-20 h-10 rounded-md border p-1"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="author"
+              className="mb-1 block text-sm font-medium"
+            >
+              Author
+            </label>
+            <input
+              type="text"
+              id="author"
+              name="author"
+              value={formData.author}
               onChange={handleChange}
               className="w-full rounded-md border p-2"
             />

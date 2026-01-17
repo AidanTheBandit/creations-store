@@ -2,7 +2,7 @@ import React from "react";
 
 export const CreationGrid = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {React.Children.map(children, (child, index) => (
         <div
           key={index}

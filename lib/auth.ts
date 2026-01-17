@@ -25,9 +25,23 @@ export const authOptions: NextAuthOptions = {
           where: eq(users.email, profile.email as string),
         });
 
-        const discordName = (profile as any).username || profile.name || "User";
+        // Discord profile structure:
+        // - global_name: User's display name (what they want to be called)
+        // - username: Their actual username (e.g., "username" without discriminator)
+        // - name: Usually fallback to global_name or username
+        const discordName = (profile as any).global_name || (profile as any).username || profile.name || "User";
         const discordId = (profile as any).id;
         const ADMIN_DISCORD_ID = "592732401856282638";
+
+        // Discord avatar URL needs to be constructed properly
+        // Format: https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png
+        let discordAvatar: string | null = null;
+        if (profile.image) {
+          discordAvatar = profile.image as string;
+        } else if ((profile as any).avatar && discordId) {
+          // Fallback: construct the avatar URL manually
+          discordAvatar = `https://cdn.discordapp.com/avatars/${discordId}/${(profile as any).avatar}.png`;
+        }
 
         if (existingUser) {
           token.id = existingUser.id;
@@ -36,7 +50,7 @@ export const authOptions: NextAuthOptions = {
           await db.update(users)
             .set({
               name: discordName,
-              avatar: profile.image as string || null,
+              avatar: discordAvatar,
               updatedAt: new Date(),
             })
             .where(eq(users.id, existingUser.id));
@@ -48,7 +62,7 @@ export const authOptions: NextAuthOptions = {
             id: userId,
             email: profile.email as string,
             name: discordName,
-            avatar: profile.image as string || null,
+            avatar: discordAvatar,
             isAdmin,
             password: "", // Not needed for OAuth
           });

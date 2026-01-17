@@ -61,6 +61,14 @@ const Header = async ({ session }: { session: any }) => {
 
         {/* User Menu */}
         <nav className="flex items-center gap-2">
+          <Link
+            href="https://buymeacoffee.com/boondit"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium text-amber-600 hover:text-amber-700 dark:text-amber-500 dark:hover:text-amber-400 transition-colors px-3 py-1.5 rounded-md hover:bg-accent"
+          >
+            ☕ Donate
+          </Link>
           {session?.user ? (
             <>
               <Link
@@ -99,6 +107,9 @@ const Footer = () => {
         <div className="grid gap-1 text-xs text-muted-foreground">
           <p>
             © {new Date().getFullYear()} {directory.name}. All rights reserved.
+          </p>
+          <p>
+            This is a fan website and is not affiliated with, endorsed by, or associated with Rabbit Inc.
           </p>
         </div>
         <ThemeToggle />
