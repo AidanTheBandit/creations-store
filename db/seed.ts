@@ -190,7 +190,8 @@ async function seed() {
       ogImage: "https://cdn.dribbble.com/assets/art-banners/manifest-banner-1-a9f45a6adc987f0f59d08a818ffe1832447d7d4fef78fefdda4f085f6dac6660.png",
       overview: "Dribbble is the leading destination to find & showcase creative work and home to the world's best design professionals.",
       isFavorite: false
-    }
+    },
+  ];
 
 seed().catch((error) => {
   console.error("Error seeding database:", error);
