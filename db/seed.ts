@@ -1,9 +1,26 @@
 import { db } from "./client";
-import { creations, categories } from "./schema";
+import { creations, categories, users } from "./schema";
 import { eq } from "drizzle-orm";
 
 async function seed() {
   console.log("🌱 Seeding database...");
+
+  // Create a default user first
+  console.log("Creating default user...");
+  try {
+    const [defaultUser] = await db
+      .insert(users)
+      .values({
+        id: "default-user",
+        email: "admin@example.com",
+        name: "Admin User",
+        isAdmin: true,
+      })
+      .returning();
+    console.log("✓ Created default user");
+  } catch (error) {
+    console.log("⚠️  Default user might already exist");
+  }
 
   // Create categories
   console.log("Creating categories...");
@@ -135,6 +152,8 @@ async function seed() {
       slug: "github",
       description: "Where the world builds software",
       categoryId: createdCategories[9].id, // developer-tools
+      userId: "default-user",
+      status: "published" as const,
       favicon: "https://github.githubassets.com/favicons/favicon.svg",
       ogImage:
         "https://github.githubassets.com/images/modules/site/social-cards/homepage.png",
