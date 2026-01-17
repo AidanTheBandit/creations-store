@@ -74,7 +74,7 @@ export default async function Home({
       acc[category.id] = categoryBookmarks;
     }
     return acc;
-  }, {} as Record<number, typeof bookmarks>);
+  }, {} as Record<string, typeof bookmarks>);
 
   return (
     <div className="flex min-h-screen">
