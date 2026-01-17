@@ -73,7 +73,7 @@ export function AppSidebar({ categories, className }: AppSidebarProps) {
   const isFiltered = searchParams.search || searchParams.category;
 
   return (
-    <aside className={cn("flex h-[calc(100vh-3.5rem)] w-64 flex-col border-r bg-background", className)}>
+    <aside className={cn("flex h-[calc(100vh-3rem)] w-64 flex-col border-r bg-background", className)}>
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         {/* Search */}

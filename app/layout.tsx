@@ -8,10 +8,8 @@ import { Manrope as Font } from "next/font/google";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-import { Button } from "@/components/ui/button";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Container } from "@/components/craft";
 
 import { directory } from "@/directory.config";
 
@@ -54,40 +52,42 @@ export default async function RootLayout({
 
 const Header = async ({ session }: { session: any }) => {
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <Container>
-        <div className="flex h-14 items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="font-bold text-lg hover:opacity-80 transition-opacity">
-            {directory.name}
-          </Link>
+    <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
+      <div className="flex h-12 items-center justify-between px-6">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2 font-semibold text-sm hover:opacity-80 transition-opacity">
+          <span className="text-base font-bold">{directory.name}</span>
+        </Link>
 
-          {/* Navigation */}
-          <nav className="flex items-center gap-2">
-            {session?.user ? (
-              <>
-                <Button variant="ghost" size="sm" className="h-8" asChild>
-                  <Link href="/dashboard">Dashboard</Link>
-                </Button>
-                <form action="/api/auth/signout" method="POST">
-                  <Button type="submit" variant="ghost" size="sm" className="h-8">
-                    Sign Out
-                  </Button>
-                </form>
-              </>
-            ) : (
-              <>
-                <Button variant="ghost" size="sm" className="h-8" asChild>
-                  <Link href="/auth/login">Sign In</Link>
-                </Button>
-                <Button size="sm" className="h-8" asChild>
-                  <Link href="/auth/register">Sign Up</Link>
-                </Button>
-              </>
-            )}
-          </nav>
-        </div>
-      </Container>
+        {/* User Menu */}
+        <nav className="flex items-center gap-2">
+          {session?.user ? (
+            <>
+              <Link
+                href="/dashboard"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md hover:bg-accent"
+              >
+                Dashboard
+              </Link>
+              <form action="/api/auth/signout" method="POST">
+                <button
+                  type="submit"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md hover:bg-accent"
+                >
+                  Sign Out
+                </button>
+              </form>
+            </>
+          ) : (
+            <Link
+              href="/api/auth/signin"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md hover:bg-accent"
+            >
+              Sign In with Discord
+            </Link>
+          )}
+        </nav>
+      </div>
     </header>
   );
 };
@@ -95,14 +95,14 @@ const Header = async ({ session }: { session: any }) => {
 const Footer = () => {
   return (
     <footer className="border-t bg-muted/40">
-      <Container className="flex items-center justify-between gap-3 py-6">
+      <div className="flex items-center justify-between gap-3 px-6 py-4">
         <div className="grid gap-1 text-xs text-muted-foreground">
           <p>
             © {new Date().getFullYear()} {directory.name}. All rights reserved.
           </p>
         </div>
         <ThemeToggle />
-      </Container>
+      </div>
     </footer>
   );
 };
