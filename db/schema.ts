@@ -13,6 +13,7 @@ export const users = sqliteTable("users", {
   bio: text("bio"),
   avatar: text("avatar"),
   isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),
+  isSuspended: integer("is_suspended", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),

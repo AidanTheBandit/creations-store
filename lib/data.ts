@@ -1,6 +1,6 @@
 import { db } from "@/db/client";
 import { creations, creationScreenshots, creationViews, categories, users } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, ne } from "drizzle-orm";
 
 export type Creation = typeof creations.$inferSelect;
 export type Category = typeof categories.$inferSelect;
@@ -17,7 +17,7 @@ export async function getAllCreations(): Promise<(Creation & { category: Categor
     .from(creations)
     .leftJoin(categories, eq(creations.categoryId, categories.id))
     .leftJoin(users, eq(creations.userId, users.id))
-    .where(eq(creations.status, "published"));
+    .where(and(eq(creations.status, "published"), ne(users.isSuspended, true)));
 
   return results.map(row => ({
     ...row.creations,
@@ -36,7 +36,7 @@ export async function getCreationById(id: number): Promise<(Creation & { categor
     .from(creations)
     .leftJoin(categories, eq(creations.categoryId, categories.id))
     .leftJoin(users, eq(creations.userId, users.id))
-    .where(eq(creations.id, id))
+    .where(and(eq(creations.id, id), ne(users.isSuspended, true)))
     .limit(1);
 
   if (results.length === 0) {
@@ -166,7 +166,7 @@ export async function getPublishedCreations(): Promise<(Creation & { category: C
     .from(creations)
     .leftJoin(categories, eq(creations.categoryId, categories.id))
     .leftJoin(users, eq(creations.userId, users.id))
-    .where(eq(creations.status, "published"));
+    .where(and(eq(creations.status, "published"), ne(users.isSuspended, true)));
 
   return results.map(row => ({
     ...row.creations,
@@ -204,7 +204,7 @@ export async function getAllUsers(): Promise<(User & { creationCount: number })[
 
 export async function getUserProfile(userId: string) {
   const user = await getUserById(userId);
-  if (!user) return null;
+  if (!user || user.isSuspended) return null;
 
   const publishedCreations = await db
     .select()

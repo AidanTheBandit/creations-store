@@ -109,6 +109,15 @@ const Footer = () => {
           <p>
             This is a fan website and is not affiliated with, endorsed by, or associated with Rabbit Inc.
           </p>
+          <div className="flex gap-3">
+            <Link href="/tos" className="hover:text-foreground transition-colors">
+              Terms of Service
+            </Link>
+            <span>•</span>
+            <Link href="/privacy" className="hover:text-foreground transition-colors">
+              Privacy Policy
+            </Link>
+          </div>
         </div>
         <ThemeToggle />
       </div>

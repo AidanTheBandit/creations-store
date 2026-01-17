@@ -124,21 +124,13 @@ export default async function Page({ params }: Props) {
               {/* App Icon */}
               <div className="flex-shrink-0">
                 <div className="group relative">
-                  {bookmark.favicon ? (
+                  {bookmark.iconUrl || bookmark.favicon || bookmark.ogImage ? (
                     <img
-                      src={bookmark.favicon}
+                      src={bookmark.iconUrl || bookmark.favicon || bookmark.ogImage!}
                       alt={`${bookmark.title} icon`}
                       width={128}
                       height={128}
                       className="h-32 w-32 rounded-3xl border-4 border-background shadow-xl transition-transform group-hover:scale-105"
-                    />
-                  ) : bookmark.ogImage ? (
-                    <img
-                      src={bookmark.ogImage}
-                      alt={`${bookmark.title} preview`}
-                      width={128}
-                      height={128}
-                      className="h-32 w-32 rounded-3xl border-4 border-background shadow-xl object-cover transition-transform group-hover:scale-105"
                     />
                   ) : (
                     <div className="flex h-32 w-32 items-center justify-center rounded-3xl border-4 border-background bg-gradient-to-br from-primary/20 to-primary/5 shadow-xl">
