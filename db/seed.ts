@@ -167,6 +167,8 @@ async function seed() {
       slug: "figma",
       description: "The collaborative interface design tool",
       categoryId: createdCategories[10].id, // design
+      userId: "default-user",
+      status: "published" as const,
       favicon: "https://static.figma.com/app/icon/1/favicon.svg",
       ogImage:
         "https://cdn.sanity.io/images/599r6htc/localized/a279334dfd43febf8fec669011443159e9089cda-2400x1260.png?w=1200&q=70&fit=max&auto=format",
@@ -180,6 +182,8 @@ async function seed() {
       slug: "notion",
       description: "All-in-one workspace",
       categoryId: createdCategories[1].id, // productivity
+      userId: "default-user",
+      status: "published" as const,
       favicon: "https://www.notion.so/images/favicon.ico",
       ogImage:
         "https://www.notion.so/cdn-cgi/image/format=auto,width=640,quality=100/front-static/shared/icons/notion-app-icon-3d.png",
@@ -193,6 +197,8 @@ async function seed() {
       slug: "coursera",
       description: "Learn without limits",
       categoryId: createdCategories[4].id, // education
+      userId: "default-user",
+      status: "published" as const,
       favicon:
         "https://d3njjcbhbojbot.cloudfront.net/web/images/favicons/favicon-v2-96x96.png",
       ogImage: "https://about.coursera.org/images/social/coursera-social.png",
@@ -206,6 +212,8 @@ async function seed() {
       slug: "react",
       description: "The library for web and native user interfaces",
       categoryId: createdCategories[9].id, // developer-tools
+      userId: "default-user",
+      status: "published" as const,
       favicon: "https://react.dev/favicon.ico",
       ogImage: "https://react.dev/images/og-home.png",
       overview: "React is the library for web and native user interfaces",
@@ -217,6 +225,8 @@ async function seed() {
       slug: "dribbble",
       description: "Discover the world's top designers & creatives",
       categoryId: createdCategories[10].id, // design
+      userId: "default-user",
+      status: "published" as const,
       favicon:
         "https://cdn.dribbble.com/assets/favicon-b38525134603b9513174ec887944bde1a869eb6cd414f4d640ee48ab2a15a26b.ico",
       ogImage:
