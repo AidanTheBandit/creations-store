@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { headers } from "next/headers";
 import Balancer from "react-wrap-balancer";
-import { cookies } from "next/headers";
 
 // Database Imports
 import { getCreationById, incrementCreationViews } from "@/lib/data";
@@ -74,11 +73,13 @@ export default async function Page({ params }: Props) {
     notFound();
   }
 
+  // Get headers for IP tracking and URL generation
+  const headersList = await headers();
+
   // Get a consistent session identifier for view tracking
   // Use user ID if logged in, otherwise use IP address
   const viewSessionId = bookmark.user?.id || (() => {
     // Get IP address from headers for anonymous users
-    const headersList = headers();
     const forwarded = headersList.get('x-forwarded-for');
     const realIp = headersList.get('x-real-ip');
     const ip = forwarded ? forwarded.split(',')[0].trim() : realIp || 'unknown';
@@ -90,7 +91,6 @@ export default async function Page({ params }: Props) {
   incrementCreationViews(bookmark.id, viewSessionId).catch(console.error);
 
   // Get the full URL for sharing
-  const headersList = await headers();
   const host = headersList.get('host') || '';
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
   const pageUrl = `${protocol}://${host}/${slugParam}`;
