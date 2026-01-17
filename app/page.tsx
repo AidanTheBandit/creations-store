@@ -128,6 +128,7 @@ export default async function Home({
                             name: bookmark.user.name,
                           }
                         : null,
+                      iconUrl: bookmark.iconUrl,
                       favicon: bookmark.favicon,
                       overview: bookmark.overview,
                       ogImage: bookmark.ogImage,
@@ -176,6 +177,7 @@ export default async function Home({
                             name: bookmark.user.name,
                           }
                         : null,
+                      iconUrl: bookmark.iconUrl,
                       favicon: bookmark.favicon,
                       overview: bookmark.overview,
                       ogImage: bookmark.ogImage,
@@ -230,6 +232,7 @@ export default async function Home({
                                   name: bookmark.user.name,
                                 }
                               : null,
+                            iconUrl: bookmark.iconUrl,
                             favicon: bookmark.favicon,
                             overview: bookmark.overview,
                             ogImage: bookmark.ogImage,
@@ -287,6 +290,7 @@ export default async function Home({
                             name: bookmark.user.name,
                           }
                         : null,
+                      iconUrl: bookmark.iconUrl,
                       favicon: bookmark.favicon,
                       overview: bookmark.overview,
                       ogImage: bookmark.ogImage,

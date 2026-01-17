@@ -103,14 +103,6 @@ export const CreationCard = ({ creation }: CreationCardProps) => {
                   height={64}
                   className="h-16 w-16 rounded-xl"
                 />
-              ) : creation.ogImage ? (
-                <img
-                  src={creation.ogImage}
-                  alt={`${creation.title} preview`}
-                  width={64}
-                  height={64}
-                  className="h-16 w-16 rounded-xl object-cover"
-                />
               ) : (
                 <AppWindow
                   className="h-16 w-16 text-muted-foreground"
