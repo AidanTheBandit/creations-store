@@ -9,7 +9,7 @@ const turso = createClient({
 
 async function resetDatabase() {
   console.log("🗑️  Resetting database...");
-  
+
   try {
     // Drop all tables
     await turso.execute("DROP TABLE IF EXISTS creation_views");
@@ -18,11 +18,13 @@ async function resetDatabase() {
     await turso.execute("DROP TABLE IF EXISTS sessions");
     await turso.execute("DROP TABLE IF EXISTS categories");
     await turso.execute("DROP TABLE IF EXISTS users");
-    
+
     console.log("✅ Database reset complete!");
   } catch (error) {
     console.error("Error resetting database:", error);
   }
 }
 
-resetDatabase().then(() => process.exit(0)).catch(() => process.exit(1));
+resetDatabase()
+  .then(() => process.exit(0))
+  .catch(() => process.exit(1));

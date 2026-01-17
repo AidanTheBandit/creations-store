@@ -13,7 +13,8 @@
     "db:seed": "tsx db/seed.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:generate-data": "tsx scripts/generate-db.ts"
+    "db:generate-data": "tsx scripts/generate-db.ts",
+    "db:reset": "tsx scripts/reset-db.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
