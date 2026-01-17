@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 import { Star, Archive, ExternalLink, AppWindow } from "lucide-react";
 import { Button } from "./ui/button";
 
-interface BookmarkCardProps {
-  bookmark: {
+interface CreationCardProps {
+  creation: {
     id: number;
     url: string;
     title: string;
@@ -22,47 +22,70 @@ interface BookmarkCardProps {
       id: string;
       name: string;
     } | null;
+    iconUrl?: string | null;
     favicon?: string | null;
     overview?: string | null;
     ogImage?: string | null;
+    themeColor?: string | null;
+    author?: string | null;
+    screenshotUrl?: string | null;
     isArchived: boolean;
     isFavorite: boolean;
     slug: string;
   };
 }
 
-export const BookmarkCard = ({ bookmark }: BookmarkCardProps) => {
-  const detailsUrl = `/${bookmark.slug}`;
-  const externalUrl = bookmark.url;
+// Legacy alias for backward compatibility
+export interface BookmarkCardProps extends CreationCardProps {
+  bookmark: CreationCardProps["creation"];
+}
+
+export const CreationCard = ({ creation }: CreationCardProps) => {
+  const detailsUrl = `/${creation.slug}`;
+  const externalUrl = creation.url;
+
+  // Use iconUrl first, then fallback to favicon, then ogImage
+  const iconSrc = creation.iconUrl || creation.favicon || creation.ogImage;
 
   return (
     <div
       className={cn(
         "not-prose group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:shadow-xl hover:-translate-y-1",
-        bookmark.isArchived && "opacity-75 hover:opacity-100",
+        creation.isArchived && "opacity-75 hover:opacity-100",
       )}
+      style={creation.themeColor ? {
+        borderColor: `${creation.themeColor}33`,
+      } : undefined}
     >
       {/* App Icon Header */}
-      <div className="relative bg-gradient-to-br from-muted/50 to-muted p-6 pb-4">
+      <div
+        className="relative bg-gradient-to-br from-muted/50 to-muted p-6 pb-4"
+        style={creation.themeColor ? {
+          background: `linear-gradient(to bottom right, ${creation.themeColor}15, transparent)`,
+        } : undefined}
+      >
         <div className="flex items-start justify-between">
           {/* App Icon */}
           <Link
             href={detailsUrl}
             className="flex items-center justify-center rounded-2xl border-2 border-border bg-background p-3 shadow-sm transition-all hover:scale-105 hover:border-primary/50"
-            aria-label={`View details for ${bookmark.title}`}
+            style={creation.themeColor ? {
+              borderColor: `${creation.themeColor}44`,
+            } : undefined}
+            aria-label={`View details for ${creation.title}`}
           >
-            {bookmark.favicon ? (
+            {iconSrc ? (
               <img
-                src={bookmark.favicon}
-                alt={`${bookmark.title} icon`}
+                src={iconSrc}
+                alt={`${creation.title} icon`}
                 width={64}
                 height={64}
                 className="h-16 w-16 rounded-xl"
               />
-            ) : bookmark.ogImage ? (
+            ) : creation.ogImage ? (
               <img
-                src={bookmark.ogImage}
-                alt={`${bookmark.title} preview`}
+                src={creation.ogImage}
+                alt={`${creation.title} preview`}
                 width={64}
                 height={64}
                 className="h-16 w-16 rounded-xl object-cover"
@@ -77,7 +100,7 @@ export const BookmarkCard = ({ bookmark }: BookmarkCardProps) => {
 
           {/* Status Badges */}
           <div className="flex gap-1.5">
-            {bookmark.isFavorite && (
+            {creation.isFavorite && (
               <Badge
                 variant="secondary"
                 className="bg-yellow-500/10 text-yellow-500 backdrop-blur-sm"
@@ -85,7 +108,7 @@ export const BookmarkCard = ({ bookmark }: BookmarkCardProps) => {
                 <Star className="h-3 w-3" aria-label="Featured" />
               </Badge>
             )}
-            {bookmark.isArchived && (
+            {creation.isArchived && (
               <Badge
                 variant="secondary"
                 className="bg-gray-500/10 text-gray-500 backdrop-blur-sm"
@@ -97,13 +120,17 @@ export const BookmarkCard = ({ bookmark }: BookmarkCardProps) => {
         </div>
 
         {/* Category Badge */}
-        {bookmark.category && (
+        {creation.category && (
           <div className="mt-3">
             <Badge
               variant="outline"
               className="border-0 bg-background/50 backdrop-blur-sm text-xs font-medium"
+              style={creation.category.color ? {
+                backgroundColor: `${creation.category.color}22`,
+                color: creation.category.color,
+              } : undefined}
             >
-              {bookmark.category.name}
+              {creation.category.name}
             </Badge>
           </div>
         )}
@@ -114,22 +141,29 @@ export const BookmarkCard = ({ bookmark }: BookmarkCardProps) => {
         {/* Title and Description */}
         <div className="space-y-1">
           <h2 className="font-semibold text-lg leading-tight tracking-tight group-hover:text-primary transition-colors">
-            {bookmark.title}
+            {creation.title}
           </h2>
-          {bookmark.user && (
-            <Link
-              href={`/u/${bookmark.user.id}`}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              by {bookmark.user.name}
-            </Link>
+          {/* Author or User */}
+          {(creation.author || creation.user) && (
+            <span className="text-sm text-muted-foreground">
+              {creation.author ? `by ${creation.author}` : null}
+              {creation.author && creation.user ? " • " : null}
+              {creation.user && (
+                <Link
+                  href={`/u/${creation.user.id}`}
+                  className="hover:text-foreground transition-colors"
+                >
+                  added by {creation.user.name}
+                </Link>
+              )}
+            </span>
           )}
         </div>
 
         {/* Description */}
-        {bookmark.description && (
+        {creation.description && (
           <p className="line-clamp-2 text-sm text-muted-foreground">
-            {bookmark.description}
+            {creation.description}
           </p>
         )}
 
@@ -139,6 +173,9 @@ export const BookmarkCard = ({ bookmark }: BookmarkCardProps) => {
             variant="default"
             size="sm"
             className="flex-1 font-medium"
+            style={creation.themeColor ? {
+              backgroundColor: creation.themeColor,
+            } : undefined}
             asChild
           >
             <Link href={detailsUrl}>View</Link>
@@ -147,6 +184,9 @@ export const BookmarkCard = ({ bookmark }: BookmarkCardProps) => {
             variant="outline"
             size="sm"
             className="group/link flex-1 font-medium"
+            style={creation.themeColor ? {
+              borderColor: `${creation.themeColor}66`,
+            } : undefined}
             asChild
           >
             <Link
@@ -164,3 +204,6 @@ export const BookmarkCard = ({ bookmark }: BookmarkCardProps) => {
     </div>
   );
 };
+
+// Legacy component alias for backward compatibility
+export const BookmarkCard = ({ bookmark }: BookmarkCardProps) => <CreationCard creation={bookmark} />;

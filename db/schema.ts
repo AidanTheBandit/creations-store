@@ -11,6 +11,7 @@ export const users = sqliteTable("users", {
   password: text("password"), // Made optional for OAuth users
   bio: text("bio"),
   avatar: text("avatar"),
+  isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -43,8 +44,8 @@ export const categories = sqliteTable("categories", {
   updatedAt: integer("updated_at", { mode: "timestamp" }),
 });
 
-// Bookmarks table
-export const bookmarks = sqliteTable("bookmarks", {
+// Creations table (renamed from bookmarks)
+export const creations = sqliteTable("creations", {
   // Core fields
   id: integer("id").primaryKey({ autoIncrement: true }),
   url: text("url").notNull().unique(),
@@ -60,9 +61,15 @@ export const bookmarks = sqliteTable("bookmarks", {
   userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
   status: text("status", { enum: ["draft", "published"] }).notNull().default("draft"),
 
-  // Metadata
-  favicon: text("favicon"), // URL to the site's favicon
-  screenshot: text("screenshot"), // URL to a screenshot of the page
+  // Metadata - NEW FORMAT
+  iconUrl: text("icon_url"), // Custom icon URL (replaces favicon)
+  themeColor: text("theme_color"), // Theme color hex code (#fe5000)
+  author: text("author"), // Optional author/credits
+  screenshotUrl: text("screenshot_url"), // Main selected screenshot URL
+
+  // Legacy metadata (kept for migration)
+  favicon: text("favicon"), // DEPRECATED: Use iconUrl instead
+  screenshot: text("screenshot"), // DEPRECATED: Use screenshotUrl instead
   overview: text("overview"), // Short preview of the content
 
   // SEO and sharing
@@ -80,7 +87,7 @@ export const bookmarks = sqliteTable("bookmarks", {
   lastVisited: integer("last_visited", { mode: "timestamp" }),
 
   // User data
-  notes: text("notes"), // Personal notes about the bookmark
+  notes: text("notes"), // Personal notes about the creation
   isArchived: integer("is_archived", { mode: "boolean" })
     .notNull()
     .default(false),
@@ -91,30 +98,52 @@ export const bookmarks = sqliteTable("bookmarks", {
 
   // Analytics
   views: integer("views").notNull().default(0),
-}, (bookmarks) => ({
-  userIdx: index("bookmarks_user_idx").on(bookmarks.userId),
-  statusIdx: index("bookmarks_status_idx").on(bookmarks.status),
-  viewsIdx: index("bookmarks_views_idx").on(bookmarks.views),
+}, (creations) => ({
+  userIdx: index("creations_user_idx").on(creations.userId),
+  statusIdx: index("creations_status_idx").on(creations.status),
+  viewsIdx: index("creations_views_idx").on(creations.views),
+}));
+
+// Creation Screenshots table (for multiple screenshots per creation)
+export const creationScreenshots = sqliteTable("creation_screenshots", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  creationId: integer("creation_id").notNull().references(() => creations.id, { onDelete: "cascade" }),
+  url: text("url").notNull(), // catbox.moe URL
+  isMain: integer("is_main", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+}, (screenshots) => ({
+  creationIdx: index("screenshots_creation_idx").on(screenshots.creationId),
+  isMainIdx: index("screenshots_is_main_idx").on(screenshots.isMain),
 }));
 
 // Relations
-export const bookmarksRelations = relations(bookmarks, ({ one }) => ({
+export const creationsRelations = relations(creations, ({ one, many }) => ({
   category: one(categories, {
-    fields: [bookmarks.categoryId],
+    fields: [creations.categoryId],
     references: [categories.id],
   }),
   user: one(users, {
-    fields: [bookmarks.userId],
+    fields: [creations.userId],
     references: [users.id],
+  }),
+  screenshots: many(creationScreenshots),
+}));
+
+export const creationScreenshotsRelations = relations(creationScreenshots, ({ one }) => ({
+  creation: one(creations, {
+    fields: [creationScreenshots.creationId],
+    references: [creations.id],
   }),
 }));
 
 export const categoriesRelations = relations(categories, ({ many }) => ({
-  bookmarks: many(bookmarks),
+  creations: many(creations),
 }));
 
 export const usersRelations = relations(users, ({ many }) => ({
-  bookmarks: many(bookmarks),
+  creations: many(creations),
   sessions: many(sessions),
 }));
 
@@ -134,5 +163,12 @@ export type NewSession = typeof sessions.$inferInsert;
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
 
-export type Bookmark = typeof bookmarks.$inferSelect;
-export type NewBookmark = typeof bookmarks.$inferInsert;
+export type Creation = typeof creations.$inferSelect;
+export type NewCreation = typeof creations.$inferInsert;
+
+export type CreationScreenshot = typeof creationScreenshots.$inferSelect;
+export type NewCreationScreenshot = typeof creationScreenshots.$inferInsert;
+
+// Legacy type aliases for backward compatibility during migration
+export type Bookmark = Creation;
+export type NewBookmark = NewCreation;

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import AdminHeader from "@/components/admin/admin-header";
 import Link from "next/link";
 
-interface Bookmark {
+interface Creation {
   url: string;
   slug: string;
   name: string;
@@ -16,27 +16,27 @@ interface Bookmark {
   screenshot_url: string | null;
 }
 
-export default function ManageBookmarks() {
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [filteredBookmarks, setFilteredBookmarks] = useState<Bookmark[]>([]);
+export default function ManageCreations() {
+  const [creations, setCreations] = useState<Creation[]>([]);
+  const [filteredCreations, setFilteredCreations] = useState<Creation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Fetch bookmarks
-  const fetchBookmarks = async () => {
+  // Fetch creations
+  const fetchCreations = async () => {
     try {
-      const response = await fetch("/api/bookmarks");
+      const response = await fetch("/api/creations");
       if (!response.ok) {
-        throw new Error("Failed to fetch bookmarks");
+        throw new Error("Failed to fetch creations");
       }
       const data = await response.json();
-      setBookmarks(data);
-      setFilteredBookmarks(data);
+      setCreations(data);
+      setFilteredCreations(data);
       setError(null);
     } catch (err) {
-      setError("Failed to load bookmarks");
-      console.error("Error fetching bookmarks:", err);
+      setError("Failed to load creations");
+      console.error("Error fetching creations:", err);
     } finally {
       setLoading(false);
     }
@@ -46,52 +46,52 @@ export default function ManageBookmarks() {
   const handleSearch = (searchValue: string) => {
     setSearchTerm(searchValue);
     if (!searchValue.trim()) {
-      setFilteredBookmarks(bookmarks);
+      setFilteredCreations(creations);
       return;
     }
 
     const searchLower = searchValue.toLowerCase();
-    const filtered = bookmarks.filter((bookmark) => {
+    const filtered = creations.filter((creation) => {
       return (
-        bookmark.name.toLowerCase().includes(searchLower) ||
-        bookmark.url.toLowerCase().includes(searchLower) ||
-        bookmark.description?.toLowerCase().includes(searchLower) ||
-        bookmark.category?.toLowerCase().includes(searchLower) ||
-        bookmark.use_case?.toLowerCase().includes(searchLower) ||
-        bookmark.overview?.toLowerCase().includes(searchLower)
+        creation.name.toLowerCase().includes(searchLower) ||
+        creation.url.toLowerCase().includes(searchLower) ||
+        creation.description?.toLowerCase().includes(searchLower) ||
+        creation.category?.toLowerCase().includes(searchLower) ||
+        creation.use_case?.toLowerCase().includes(searchLower) ||
+        creation.overview?.toLowerCase().includes(searchLower)
       );
     });
-    setFilteredBookmarks(filtered);
+    setFilteredCreations(filtered);
   };
 
-  // Delete bookmark
+  // Delete creation
   const handleDelete = async (url: string) => {
-    if (!confirm("Are you sure you want to delete this bookmark?")) {
+    if (!confirm("Are you sure you want to delete this creation?")) {
       return;
     }
 
     try {
       const response = await fetch(
-        `/api/bookmarks/${encodeURIComponent(url)}`,
+        `/api/creations/${encodeURIComponent(url)}`,
         {
           method: "DELETE",
         },
       );
 
       if (!response.ok) {
-        throw new Error("Failed to delete bookmark");
+        throw new Error("Failed to delete creation");
       }
 
-      // Refresh the bookmarks list
-      fetchBookmarks();
+      // Refresh the creations list
+      fetchCreations();
     } catch (err) {
-      console.error("Error deleting bookmark:", err);
-      alert("Failed to delete bookmark. Please try again.");
+      console.error("Error deleting creation:", err);
+      alert("Failed to delete creation. Please try again.");
     }
   };
 
   useEffect(() => {
-    fetchBookmarks();
+    fetchCreations();
   }, []);
 
   if (loading) {
@@ -121,12 +121,12 @@ export default function ManageBookmarks() {
       <AdminHeader />
       <div className="mx-auto max-w-7xl p-6">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Manage Bookmarks</h1>
+          <h1 className="text-3xl font-bold">Manage Creations</h1>
           <Link
             href="/admin"
             className="rounded-md bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
           >
-            Add New Bookmark
+            Add New Creation
           </Link>
         </div>
 
@@ -135,7 +135,7 @@ export default function ManageBookmarks() {
           <div className="relative">
             <input
               type="text"
-              placeholder="Search bookmarks..."
+              placeholder="Search creations..."
               value={searchTerm}
               onChange={(e) => handleSearch(e.target.value)}
               className="w-full rounded-lg border p-3 pl-10 shadow-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
@@ -156,40 +156,40 @@ export default function ManageBookmarks() {
             </svg>
           </div>
           <div className="mt-2 text-sm text-gray-500">
-            Found {filteredBookmarks.length} bookmark
-            {filteredBookmarks.length !== 1 ? "s" : ""}
+            Found {filteredCreations.length} creation
+            {filteredCreations.length !== 1 ? "s" : ""}
             {searchTerm && ` matching "${searchTerm}"`}
           </div>
         </div>
 
         <div className="grid gap-4">
-          {filteredBookmarks.map((bookmark) => (
+          {filteredCreations.map((creation) => (
             <div
-              key={bookmark.url}
+              key={creation.url}
               className="rounded-lg border p-4 shadow-sm transition-shadow hover:shadow-md"
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-xl font-semibold">{bookmark.name}</h2>
+                  <h2 className="text-xl font-semibold">{creation.name}</h2>
                   <a
-                    href={bookmark.url}
+                    href={creation.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="break-all text-blue-500 hover:underline"
                   >
-                    {bookmark.url}
+                    {creation.url}
                   </a>
-                  {bookmark.description && (
-                    <p className="mt-2 text-gray-600">{bookmark.description}</p>
+                  {creation.description && (
+                    <p className="mt-2 text-gray-600">{creation.description}</p>
                   )}
-                  {bookmark.category && (
+                  {creation.category && (
                     <p className="mt-1 text-sm text-gray-500">
-                      Category: {bookmark.category}
+                      Category: {creation.category}
                     </p>
                   )}
                 </div>
                 <button
-                  onClick={() => handleDelete(bookmark.url)}
+                  onClick={() => handleDelete(creation.url)}
                   className="ml-4 text-red-500 transition-colors hover:text-red-700"
                 >
                   Delete
@@ -198,11 +198,11 @@ export default function ManageBookmarks() {
             </div>
           ))}
 
-          {filteredBookmarks.length === 0 && (
+          {filteredCreations.length === 0 && (
             <div className="py-8 text-center text-gray-500">
               {searchTerm
-                ? `No bookmarks found matching "${searchTerm}"`
-                : "No bookmarks found. Add some bookmarks to get started!"}
+                ? `No creations found matching "${searchTerm}"`
+                : "No creations found. Add some creations to get started!"}
             </div>
           )}
         </div>

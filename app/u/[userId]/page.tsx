@@ -1,8 +1,8 @@
 import { getUserProfile } from "@/lib/data";
 import { notFound } from "next/navigation";
-import { BookmarkCard } from "@/components/bookmark-card";
-import { BookmarkGrid } from "@/components/bookmark-grid";
-import { User, Calendar, Bookmark as BookmarkIcon } from "lucide-react";
+import { CreationCard } from "@/components/creation-card";
+import { CreationGrid } from "@/components/creation-grid";
+import { User, Calendar, Layers } from "lucide-react";
 
 type Props = {
   params: { userId: string };
@@ -47,8 +47,8 @@ export default async function UserProfilePage({ params }: Props) {
                   </div>
                   <div className="flex items-center gap-6 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
-                      <BookmarkIcon className="h-4 w-4" />
-                      <span>{profile.bookmarkCount} bookmarks</span>
+                      <Layers className="h-4 w-4" />
+                      <span>{profile.creationCount} creations</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
@@ -61,39 +61,43 @@ export default async function UserProfilePage({ params }: Props) {
               </div>
             </div>
 
-            {/* User's Bookmarks */}
+            {/* User's Creations */}
             <div>
               <h2 className="text-2xl font-bold mb-4">
-                Published Bookmarks
+                Published Creations
               </h2>
-              {profile.bookmarks.length === 0 ? (
+              {profile.creations.length === 0 ? (
                 <div className="text-center py-12 rounded-xl border bg-card">
-                  <BookmarkIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                  <Layers className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">
-                    No published bookmarks yet
+                    No published creations yet
                   </p>
                 </div>
               ) : (
-                <BookmarkGrid>
-                  {profile.bookmarks.map((bookmark: any) => (
-                    <BookmarkCard
-                      key={bookmark.id}
-                      bookmark={{
-                        id: bookmark.id,
-                        url: bookmark.url,
-                        title: bookmark.title,
-                        description: bookmark.description,
-                        category: bookmark.category,
-                        favicon: bookmark.favicon,
-                        overview: bookmark.overview,
-                        ogImage: bookmark.ogImage,
-                        isArchived: bookmark.isArchived,
-                        isFavorite: bookmark.isFavorite,
-                        slug: bookmark.slug,
+                <CreationGrid>
+                  {profile.creations.map((creation: any) => (
+                    <CreationCard
+                      key={creation.id}
+                      creation={{
+                        id: creation.id,
+                        url: creation.url,
+                        title: creation.title,
+                        description: creation.description,
+                        category: creation.category,
+                        favicon: creation.favicon,
+                        overview: creation.overview,
+                        ogImage: creation.ogImage,
+                        isArchived: creation.isArchived,
+                        isFavorite: creation.isFavorite,
+                        slug: creation.slug,
+                        iconUrl: creation.iconUrl,
+                        themeColor: creation.themeColor,
+                        author: creation.author,
+                        screenshotUrl: creation.screenshotUrl,
                       }}
                     />
                   ))}
-                </BookmarkGrid>
+                </CreationGrid>
               )}
             </div>
           </div>

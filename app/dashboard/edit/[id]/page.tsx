@@ -1,28 +1,28 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
-import { getAllCategories, getBookmarkById } from "@/lib/data";
-import { BookmarkForm } from "@/components/user/bookmark-form";
+import { getAllCategories, getCreationById } from "@/lib/data";
+import { CreationForm } from "@/components/user/creation-form";
 
 type Props = {
   params: { id: string };
 };
 
-export default async function EditBookmarkPage({ params }: Props) {
+export default async function EditCreationPage({ params }: Props) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
     redirect("/auth/login");
   }
 
-  const bookmark = await getBookmarkById(Number(params.id));
+  const creation = await getCreationById(Number(params.id));
 
-  if (!bookmark) {
+  if (!creation) {
     notFound();
   }
 
   // Check ownership
-  if (bookmark.userId !== session.user.id) {
+  if (creation.userId !== session.user.id) {
     redirect("/dashboard");
   }
 
@@ -35,18 +35,19 @@ export default async function EditBookmarkPage({ params }: Props) {
           <div className="mx-auto max-w-3xl">
             <div className="mb-8">
               <h1 className="text-3xl font-bold tracking-tight">
-                Edit Bookmark
+                Edit Creation
               </h1>
               <p className="text-muted-foreground mt-2">
-                Update your bookmark details
+                Update your creation details
               </p>
             </div>
 
-            <BookmarkForm
+            <CreationForm
               categories={categories}
               userId={session.user.id}
               mode="edit"
-              bookmark={bookmark}
+              creation={creation}
+              username={session.user.name}
             />
           </div>
         </div>

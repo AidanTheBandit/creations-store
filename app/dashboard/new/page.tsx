@@ -2,9 +2,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getAllCategories } from "@/lib/data";
-import { BookmarkForm } from "@/components/user/bookmark-form";
+import { CreationForm } from "@/components/user/creation-form";
 
-export default async function NewBookmarkPage() {
+export default async function NewCreationPage() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -20,17 +20,18 @@ export default async function NewBookmarkPage() {
           <div className="mx-auto max-w-3xl">
             <div className="mb-8">
               <h1 className="text-3xl font-bold tracking-tight">
-                Create Bookmark
+                Create Creation
               </h1>
               <p className="text-muted-foreground mt-2">
-                Add a new bookmark to your collection
+                Add a new creation to your collection
               </p>
             </div>
 
-            <BookmarkForm
+            <CreationForm
               categories={categories}
               userId={session.user.id}
               mode="create"
+              username={session.user.name}
             />
           </div>
         </div>

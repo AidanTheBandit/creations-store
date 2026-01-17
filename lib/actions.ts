@@ -1,9 +1,9 @@
 "use server";
 
 import { db } from "@/db/client";
-import { bookmarks, categories, users } from "@/db/schema";
+import { creations, categories, users } from "@/db/schema";
 import { generateSlug } from "@/lib/utils";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { hash } from "bcryptjs";
 
@@ -20,15 +20,18 @@ export type ActionState = {
   };
 };
 
-type BookmarkData = {
+type CreationData = {
   title: string;
   description: string;
   url: string;
   overview: string;
   search_results: string;
-  favicon: string;
+  iconUrl: string;
   ogImage: string;
   slug: string;
+  themeColor: string;
+  author: string;
+  screenshotUrl: string;
   categoryId: string | null;
   isFavorite: boolean;
   isArchived: boolean;
@@ -210,8 +213,8 @@ export async function deleteCategory(
   }
 }
 
-// Bookmark Actions
-export async function createBookmark(
+// Creation Actions
+export async function createCreation(
   prevState: ActionState | null,
   formData: {
     title: string;
@@ -219,9 +222,12 @@ export async function createBookmark(
     url: string;
     slug: string;
     overview: string;
-    favicon: string;
+    iconUrl: string;
     ogImage: string;
     search_results: string;
+    themeColor: string;
+    author: string;
+    screenshotUrl: string;
     categoryId: string;
     isFavorite: string;
     isArchived: string;
@@ -235,9 +241,12 @@ export async function createBookmark(
     const url = formData.url;
     let slug = formData.slug;
     const overview = formData.overview;
-    const favicon = formData.favicon;
+    const iconUrl = formData.iconUrl;
     const ogImage = formData.ogImage;
     const search_results = formData.search_results;
+    const themeColor = formData.themeColor;
+    const author = formData.author;
+    const screenshotUrl = formData.screenshotUrl;
     const categoryId = formData.categoryId;
     const isFavorite = formData.isFavorite === "true";
     const isArchived = formData.isArchived === "true";
@@ -249,7 +258,7 @@ export async function createBookmark(
       slug = generateSlug(title);
     }
 
-    await db.insert(bookmarks).values({
+    await db.insert(creations).values({
       title,
       slug,
       url,
@@ -259,8 +268,11 @@ export async function createBookmark(
       isFavorite,
       isArchived,
       overview,
-      favicon,
+      iconUrl,
       ogImage,
+      themeColor,
+      author,
+      screenshotUrl,
       userId,
       status,
     });
@@ -271,12 +283,12 @@ export async function createBookmark(
 
     return { success: true };
   } catch (err) {
-    console.error("Error creating bookmark:", err);
-    return { error: "Failed to create bookmark" };
+    console.error("Error creating creation:", err);
+    return { error: "Failed to create creation" };
   }
 }
 
-export async function updateBookmark(
+export async function updateCreation(
   prevState: ActionState | null,
   formData: {
     id: string;
@@ -285,9 +297,12 @@ export async function updateBookmark(
     url: string;
     slug: string;
     overview: string;
-    favicon: string;
+    iconUrl: string;
     ogImage: string;
     search_results: string;
+    themeColor: string;
+    author: string;
+    screenshotUrl: string;
     categoryId: string;
     isFavorite: string;
     isArchived: string;
@@ -301,19 +316,19 @@ export async function updateBookmark(
 
     const id = formData.id;
     if (!id) {
-      return { error: "No bookmark ID provided" };
+      return { error: "No creation ID provided" };
     }
 
     // Check ownership
-    const bookmark = await db.query.bookmarks.findFirst({
-      where: eq(bookmarks.id, Number(id)),
+    const creation = await db.query.creations.findFirst({
+      where: eq(creations.id, Number(id)),
     });
 
-    if (!bookmark) {
-      return { error: "Bookmark not found" };
+    if (!creation) {
+      return { error: "Creation not found" };
     }
 
-    if (bookmark.userId !== formData.userId) {
+    if (creation.userId !== formData.userId) {
       return { error: "Unauthorized" };
     }
 
@@ -322,9 +337,12 @@ export async function updateBookmark(
     const url = formData.url;
     let slug = formData.slug;
     const overview = formData.overview;
-    const favicon = formData.favicon;
+    const iconUrl = formData.iconUrl;
     const ogImage = formData.ogImage;
     const search_results = formData.search_results;
+    const themeColor = formData.themeColor;
+    const author = formData.author;
+    const screenshotUrl = formData.screenshotUrl;
     const categoryId = formData.categoryId;
     const isFavorite = formData.isFavorite === "true";
     const isArchived = formData.isArchived === "true";
@@ -335,7 +353,7 @@ export async function updateBookmark(
     }
 
     await db
-      .update(bookmarks)
+      .update(creations)
       .set({
         title,
         slug,
@@ -344,12 +362,15 @@ export async function updateBookmark(
         categoryId: categoryId === "none" ? null : categoryId,
         search_results: search_results || null,
         overview,
-        favicon,
+        iconUrl,
         ogImage,
+        themeColor,
+        author,
+        screenshotUrl,
         isFavorite,
         isArchived,
       })
-      .where(eq(bookmarks.id, Number(id)));
+      .where(eq(creations.id, Number(id)));
 
     revalidatePath("/admin");
     revalidatePath("/");
@@ -357,40 +378,40 @@ export async function updateBookmark(
 
     return { success: true };
   } catch (err) {
-    console.error("Error updating bookmark:", err);
-    return { error: "Failed to update bookmark" };
+    console.error("Error updating creation:", err);
+    return { error: "Failed to update creation" };
   }
 }
 
-export async function publishBookmark(
+export async function publishCreation(
   prevState: ActionState | null,
   formData: { id: string; userId: string },
 ): Promise<ActionState> {
   try {
-    const bookmark = await db.query.bookmarks.findFirst({
-      where: eq(bookmarks.id, Number(formData.id)),
+    const creation = await db.query.creations.findFirst({
+      where: eq(creations.id, Number(formData.id)),
     });
 
-    if (!bookmark || bookmark.userId !== formData.userId) {
+    if (!creation || creation.userId !== formData.userId) {
       return { error: "Unauthorized" };
     }
 
     await db
-      .update(bookmarks)
+      .update(creations)
       .set({ status: "published" })
-      .where(eq(bookmarks.id, Number(formData.id)));
+      .where(eq(creations.id, Number(formData.id)));
 
     revalidatePath("/dashboard");
     revalidatePath("/");
 
     return { success: true };
   } catch (error) {
-    console.error("Error publishing bookmark:", error);
-    return { error: "Failed to publish bookmark" };
+    console.error("Error publishing creation:", error);
+    return { error: "Failed to publish creation" };
   }
 }
 
-export async function deleteBookmark(
+export async function deleteCreation(
   prevState: ActionState | null,
   formData: {
     id: string;
@@ -405,25 +426,25 @@ export async function deleteBookmark(
 
     const id = formData.id;
     if (!id) {
-      return { error: "No bookmark ID provided" };
+      return { error: "No creation ID provided" };
     }
 
     // Check ownership
-    const bookmark = await db.query.bookmarks.findFirst({
-      where: eq(bookmarks.id, Number(id)),
+    const creation = await db.query.creations.findFirst({
+      where: eq(creations.id, Number(id)),
     });
 
-    if (!bookmark) {
-      return { error: "Bookmark not found" };
+    if (!creation) {
+      return { error: "Creation not found" };
     }
 
-    if (bookmark.userId !== formData.userId) {
+    if (creation.userId !== formData.userId) {
       return { error: "Unauthorized" };
     }
 
     const url = formData.url;
 
-    await db.delete(bookmarks).where(eq(bookmarks.id, Number(id)));
+    await db.delete(creations).where(eq(creations.id, Number(id)));
 
     revalidatePath("/admin");
     revalidatePath("/");
@@ -432,8 +453,8 @@ export async function deleteBookmark(
 
     return { success: true };
   } catch (err) {
-    console.error("Error deleting bookmark:", err);
-    return { error: "Failed to delete bookmark" };
+    console.error("Error deleting creation:", err);
+    return { error: "Failed to delete creation" };
   }
 }
 
@@ -453,7 +474,7 @@ export async function handleError(
   }
 }
 
-export async function bulkUploadBookmarks(
+export async function bulkUploadCreations(
   prevState: ActionState | null,
   formData: {
     urls: string;
@@ -480,16 +501,19 @@ export async function bulkUploadBookmarks(
           continue;
         }
 
-        // Create bookmark data with proper types
-        const bookmarkData: BookmarkData = {
+        // Create creation data with proper types
+        const creationData: CreationData = {
           title: content.title,
           description: content.description,
           url: content.url,
           overview: content.overview,
           search_results: content.search_results,
-          favicon: content.favicon,
+          iconUrl: content.iconUrl,
           ogImage: content.ogImage,
           slug: content.slug,
+          themeColor: "",
+          author: "",
+          screenshotUrl: "",
           categoryId: null,
           isFavorite: false,
           isArchived: false,
@@ -497,7 +521,7 @@ export async function bulkUploadBookmarks(
           updatedAt: new Date(),
         };
 
-        await db.insert(bookmarks).values(bookmarkData);
+        await db.insert(creations).values(creationData);
 
         successCount++;
         revalidatePath("/admin");
@@ -520,7 +544,7 @@ export async function bulkUploadBookmarks(
 
     return {
       success: true,
-      message: `Successfully imported ${successCount} bookmarks. ${errorCount > 0 ? `Failed to import ${errorCount} URLs.` : ""}`,
+      message: `Successfully imported ${successCount} creations. ${errorCount > 0 ? `Failed to import ${errorCount} URLs.` : ""}`,
       progress: {
         current: urlList.length,
         total: urlList.length,
@@ -535,6 +559,164 @@ export async function bulkUploadBookmarks(
           ? error.message
           : "Failed to process bulk upload",
     };
+  }
+}
+
+// Screenshot Management Actions
+export async function addScreenshotToCreation(
+  prevState: ActionState | null,
+  formData: {
+    creationId: string;
+    url: string;
+    isMain: string;
+    userId: string;
+  },
+): Promise<ActionState> {
+  try {
+    const creationId = Number(formData.creationId);
+    const url = formData.url;
+    const isMain = formData.isMain === "true";
+
+    // Check ownership
+    const creation = await db.query.creations.findFirst({
+      where: eq(creations.id, creationId),
+    });
+
+    if (!creation || creation.userId !== formData.userId) {
+      return { error: "Unauthorized" };
+    }
+
+    // If setting as main, first unset existing main
+    if (isMain) {
+      const { creationScreenshots } = await import("@/db/schema");
+      await db
+        .update(creationScreenshots)
+        .set({ isMain: false })
+        .where(eq(creationScreenshots.creationId, creationId));
+    }
+
+    // Add screenshot
+    const { creationScreenshots } = await import("@/db/schema");
+    const result = await db
+      .insert(creationScreenshots)
+      .values({
+        creationId,
+        url,
+        isMain,
+      })
+      .returning();
+
+    // Also update the creation's screenshotUrl if this is the main one
+    if (isMain && result[0]) {
+      await db
+        .update(creations)
+        .set({ screenshotUrl: result[0].url })
+        .where(eq(creations.id, creationId));
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/dashboard/edit/${creationId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error adding screenshot:", error);
+    return { error: "Failed to add screenshot" };
+  }
+}
+
+export async function setMainScreenshot(
+  prevState: ActionState | null,
+  formData: {
+    screenshotId: string;
+    creationId: string;
+    userId: string;
+  },
+): Promise<ActionState> {
+  try {
+    const screenshotId = Number(formData.screenshotId);
+    const creationId = Number(formData.creationId);
+
+    // Check ownership
+    const creation = await db.query.creations.findFirst({
+      where: eq(creations.id, creationId),
+    });
+
+    if (!creation || creation.userId !== formData.userId) {
+      return { error: "Unauthorized" };
+    }
+
+    // Unset all main screenshots for this creation
+    const { creationScreenshots } = await import("@/db/schema");
+    await db
+      .update(creationScreenshots)
+      .set({ isMain: false })
+      .where(eq(creationScreenshots.creationId, creationId));
+
+    // Set the new main screenshot
+    await db
+      .update(creationScreenshots)
+      .set({ isMain: true })
+      .where(eq(creationScreenshots.id, screenshotId));
+
+    // Get the screenshot URL
+    const screenshot = await db
+      .select()
+      .from(creationScreenshots)
+      .where(eq(creationScreenshots.id, screenshotId))
+      .limit(1);
+
+    // Update the creation's screenshotUrl
+    if (screenshot[0]) {
+      await db
+        .update(creations)
+        .set({ screenshotUrl: screenshot[0].url })
+        .where(eq(creations.id, creationId));
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/dashboard/edit/${creationId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error setting main screenshot:", error);
+    return { error: "Failed to set main screenshot" };
+  }
+}
+
+export async function removeScreenshot(
+  prevState: ActionState | null,
+  formData: {
+    screenshotId: string;
+    creationId: string;
+    userId: string;
+  },
+): Promise<ActionState> {
+  try {
+    const screenshotId = Number(formData.screenshotId);
+    const creationId = Number(formData.creationId);
+
+    // Check ownership
+    const creation = await db.query.creations.findFirst({
+      where: eq(creations.id, creationId),
+    });
+
+    if (!creation || creation.userId !== formData.userId) {
+      return { error: "Unauthorized" };
+    }
+
+    // Delete the screenshot
+    const { creationScreenshots } = await import("@/db/schema");
+    await db
+      .delete(creationScreenshots)
+      .where(eq(creationScreenshots.id, screenshotId));
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/dashboard/edit/${creationId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error removing screenshot:", error);
+    return { error: "Failed to remove screenshot" };
   }
 }
 
@@ -574,7 +756,7 @@ export async function scrapeUrl(
       data: {
         title: metadata.title || "",
         description: metadata.description || "",
-        favicon: metadata.favicon || "",
+        iconUrl: metadata.favicon || "",
         ogImage: metadata.ogImage || "",
         url: metadata.url || url,
       },
@@ -587,3 +769,10 @@ export async function scrapeUrl(
     };
   }
 }
+
+// Legacy function aliases for backward compatibility
+export const createBookmark = createCreation;
+export const updateBookmark = updateCreation;
+export const publishBookmark = publishCreation;
+export const deleteBookmark = deleteCreation;
+export const bulkUploadBookmarks = bulkUploadCreations;

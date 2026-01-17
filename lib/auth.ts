@@ -25,20 +25,35 @@ export const authOptions: NextAuthOptions = {
           where: eq(users.email, profile.email as string),
         });
 
+        const discordName = (profile as any).username || profile.name || "User";
+        const discordId = (profile as any).id;
+        const ADMIN_DISCORD_ID = "592732401856282638";
+
         if (existingUser) {
           token.id = existingUser.id;
+          token.isAdmin = existingUser.isAdmin || false;
+          // Update user info on each login
+          await db.update(users)
+            .set({
+              name: discordName,
+              avatar: profile.image as string || null,
+              updatedAt: new Date(),
+            })
+            .where(eq(users.id, existingUser.id));
         } else {
           // Create new user
           const userId = crypto.randomUUID();
-          const discordName = (profile as any).username || profile.name || "User";
+          const isAdmin = discordId === ADMIN_DISCORD_ID;
           await db.insert(users).values({
             id: userId,
             email: profile.email as string,
             name: discordName,
-            avatar: (profile as any).avatar || profile.image as string || null,
+            avatar: profile.image as string || null,
+            isAdmin,
             password: "", // Not needed for OAuth
           });
           token.id = userId;
+          token.isAdmin = isAdmin;
         }
       }
       return token;
@@ -46,6 +61,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
+        (session.user as any).isAdmin = token.isAdmin as boolean;
       }
       return session;
     },

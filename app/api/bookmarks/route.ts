@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db/client";
-import { bookmarks } from "@/db/schema";
+import { creations } from "@/db/schema";
 
 export async function GET() {
   try {
-    const allBookmarks = await db.select().from(bookmarks);
-    return NextResponse.json(allBookmarks);
+    const allCreations = await db.select().from(creations);
+    return NextResponse.json(allCreations);
   } catch (error) {
-    console.error("Error fetching bookmarks:", error);
+    console.error("Error fetching creations:", error);
     return NextResponse.json(
-      { error: "Failed to fetch bookmarks" },
+      { error: "Failed to fetch creations" },
       { status: 500 },
     );
   }
@@ -19,8 +19,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // Insert the new bookmark
-    await db.insert(bookmarks).values({
+    // Insert the new creation
+    await db.insert(creations).values({
       url: body.url,
       title: body.title,
       slug: body.slug,
@@ -37,16 +37,20 @@ export async function POST(request: Request) {
       isArchived: body.isArchived || false,
       isFavorite: body.isFavorite || false,
       search_results: body.search_results || null,
+      iconUrl: body.iconUrl || null,
+      themeColor: body.themeColor || null,
+      author: body.author || null,
+      screenshotUrl: body.screenshotUrl || null,
     });
 
     return NextResponse.json(
-      { message: "Bookmark created successfully" },
+      { message: "Creation created successfully" },
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error creating bookmark:", error);
+    console.error("Error creating creation:", error);
     return NextResponse.json(
-      { error: "Failed to create bookmark" },
+      { error: "Failed to create creation" },
       { status: 500 },
     );
   }

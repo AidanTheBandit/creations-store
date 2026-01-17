@@ -1,21 +1,25 @@
 import { db } from "@/db/client";
-import { bookmarks, categories, users } from "@/db/schema";
+import { creations, creationScreenshots, categories, users } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 
-export type Bookmark = typeof bookmarks.$inferSelect;
+export type Creation = typeof creations.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type User = typeof users.$inferSelect;
+export type CreationScreenshot = typeof creationScreenshots.$inferSelect;
 
-export async function getAllBookmarks(): Promise<(Bookmark & { category: Category | null; user: User | null })[]> {
+// Legacy type aliases for backward compatibility during migration
+export type Bookmark = Creation;
+
+export async function getAllCreations(): Promise<(Creation & { category: Category | null; user: User | null })[]> {
   const results = await db
     .select()
-    .from(bookmarks)
-    .leftJoin(categories, eq(bookmarks.categoryId, categories.id))
-    .leftJoin(users, eq(bookmarks.userId, users.id))
-    .where(eq(bookmarks.status, "published"));
+    .from(creations)
+    .leftJoin(categories, eq(creations.categoryId, categories.id))
+    .leftJoin(users, eq(creations.userId, users.id))
+    .where(eq(creations.status, "published"));
 
   return results.map(row => ({
-    ...row.bookmarks,
+    ...row.creations,
     category: row.categories,
     user: row.users,
   }));
@@ -25,31 +29,31 @@ export async function getAllCategories(): Promise<Category[]> {
   return await db.select().from(categories);
 }
 
-export async function getBookmarkById(id: number): Promise<(Bookmark & { category: Category | null }) | null> {
+export async function getCreationById(id: number): Promise<(Creation & { category: Category | null }) | null> {
   const results = await db
     .select()
-    .from(bookmarks)
-    .leftJoin(categories, eq(bookmarks.categoryId, categories.id))
-    .where(eq(bookmarks.id, id))
+    .from(creations)
+    .leftJoin(categories, eq(creations.categoryId, categories.id))
+    .where(eq(creations.id, id))
     .limit(1);
-  
+
   if (results.length === 0) {
     return null;
   }
 
   return {
-    ...results[0].bookmarks,
+    ...results[0].creations,
     category: results[0].categories,
   };
 }
 
-export async function getBookmarkBySlug(slug: string): Promise<(Bookmark & { category: Category | null; user: User | null }) | null> {
+export async function getCreationBySlug(slug: string): Promise<(Creation & { category: Category | null; user: User | null }) | null> {
   const results = await db
     .select()
-    .from(bookmarks)
-    .leftJoin(categories, eq(bookmarks.categoryId, categories.id))
-    .leftJoin(users, eq(bookmarks.userId, users.id))
-    .where(eq(bookmarks.slug, slug))
+    .from(creations)
+    .leftJoin(categories, eq(creations.categoryId, categories.id))
+    .leftJoin(users, eq(creations.userId, users.id))
+    .where(eq(creations.slug, slug))
     .limit(1);
 
   if (results.length === 0) {
@@ -57,58 +61,58 @@ export async function getBookmarkBySlug(slug: string): Promise<(Bookmark & { cat
   }
 
   return {
-    ...results[0].bookmarks,
+    ...results[0].creations,
     category: results[0].categories,
     user: results[0].users,
   };
 }
 
-export async function incrementBookmarkViews(id: number): Promise<void> {
+export async function incrementCreationViews(id: number): Promise<void> {
   await db
-    .update(bookmarks)
+    .update(creations)
     .set({
-      views: sql`${bookmarks.views} + 1`,
+      views: sql`${creations.views} + 1`,
     })
-    .where(eq(bookmarks.id, id));
+    .where(eq(creations.id, id));
 }
 
 // User-specific functions
-export async function getUserBookmarks(userId: string): Promise<(Bookmark & { category: Category | null })[]> {
+export async function getUserCreations(userId: string): Promise<(Creation & { category: Category | null })[]> {
   const results = await db
     .select()
-    .from(bookmarks)
-    .leftJoin(categories, eq(bookmarks.categoryId, categories.id))
-    .where(eq(bookmarks.userId, userId));
+    .from(creations)
+    .leftJoin(categories, eq(creations.categoryId, categories.id))
+    .where(eq(creations.userId, userId));
 
   return results.map(row => ({
-    ...row.bookmarks,
+    ...row.creations,
     category: row.categories,
   }));
 }
 
-export async function getUserDrafts(userId: string): Promise<(Bookmark & { category: Category | null })[]> {
+export async function getUserDrafts(userId: string): Promise<(Creation & { category: Category | null })[]> {
   const results = await db
     .select()
-    .from(bookmarks)
-    .leftJoin(categories, eq(bookmarks.categoryId, categories.id))
-    .where(and(eq(bookmarks.userId, userId), eq(bookmarks.status, "draft")));
+    .from(creations)
+    .leftJoin(categories, eq(creations.categoryId, categories.id))
+    .where(and(eq(creations.userId, userId), eq(creations.status, "draft")));
 
   return results.map(row => ({
-    ...row.bookmarks,
+    ...row.creations,
     category: row.categories,
   }));
 }
 
-export async function getPublishedBookmarks(): Promise<(Bookmark & { category: Category | null; user: User | null })[]> {
+export async function getPublishedCreations(): Promise<(Creation & { category: Category | null; user: User | null })[]> {
   const results = await db
     .select()
-    .from(bookmarks)
-    .leftJoin(categories, eq(bookmarks.categoryId, categories.id))
-    .leftJoin(users, eq(bookmarks.userId, users.id))
-    .where(eq(bookmarks.status, "published"));
+    .from(creations)
+    .leftJoin(categories, eq(creations.categoryId, categories.id))
+    .leftJoin(users, eq(creations.userId, users.id))
+    .where(eq(creations.status, "published"));
 
   return results.map(row => ({
-    ...row.bookmarks,
+    ...row.creations,
     category: row.categories,
     user: row.users,
   }));
@@ -126,14 +130,14 @@ export async function getAllUsers(): Promise<(User & { bookmarkCount: number })[
 
   const usersWithCounts = await Promise.all(
     allUsers.map(async (user) => {
-      const userBookmarks = await db
+      const userCreations = await db
         .select()
-        .from(bookmarks)
-        .where(eq(bookmarks.userId, user.id));
+        .from(creations)
+        .where(eq(creations.userId, user.id));
 
       return {
         ...user,
-        bookmarkCount: userBookmarks.length,
+        bookmarkCount: userCreations.length,
       };
     })
   );
@@ -145,14 +149,88 @@ export async function getUserProfile(userId: string) {
   const user = await getUserById(userId);
   if (!user) return null;
 
-  const publishedBookmarks = await db
+  const publishedCreations = await db
     .select()
-    .from(bookmarks)
-    .where(and(eq(bookmarks.userId, userId), eq(bookmarks.status, "published")));
+    .from(creations)
+    .where(and(eq(creations.userId, userId), eq(creations.status, "published")));
 
   return {
     ...user,
-    bookmarkCount: publishedBookmarks.length,
-    bookmarks: publishedBookmarks,
+    creationCount: publishedCreations.length,
+    creations: publishedCreations,
   };
 }
+
+// Screenshot management functions
+export async function getCreationScreenshots(creationId: number): Promise<CreationScreenshot[]> {
+  return await db
+    .select()
+    .from(creationScreenshots)
+    .where(eq(creationScreenshots.creationId, creationId))
+    .orderBy(creationScreenshots.createdAt);
+}
+
+export async function getMainScreenshot(creationId: number): Promise<CreationScreenshot | null> {
+  const results = await db
+    .select()
+    .from(creationScreenshots)
+    .where(and(eq(creationScreenshots.creationId, creationId), eq(creationScreenshots.isMain, true)))
+    .limit(1);
+
+  return results[0] || null;
+}
+
+export async function addScreenshot(creationId: number, url: string, isMain: boolean = false): Promise<CreationScreenshot> {
+  const result = await db
+    .insert(creationScreenshots)
+    .values({
+      creationId,
+      url,
+      isMain,
+    })
+    .returning();
+
+  return result[0];
+}
+
+export async function setMainScreenshot(screenshotId: number, creationId: number): Promise<void> {
+  // First, unset all main screenshots for this creation
+  await db
+    .update(creationScreenshots)
+    .set({ isMain: false })
+    .where(eq(creationScreenshots.creationId, creationId));
+
+  // Then set the new main screenshot
+  await db
+    .update(creationScreenshots)
+    .set({ isMain: true })
+    .where(eq(creationScreenshots.id, screenshotId));
+
+  // Also update the creation's screenshotUrl
+  const screenshot = await db
+    .select()
+    .from(creationScreenshots)
+    .where(eq(creationScreenshots.id, screenshotId))
+    .limit(1);
+
+  if (screenshot[0]) {
+    await db
+      .update(creations)
+      .set({ screenshotUrl: screenshot[0].url })
+      .where(eq(creations.id, creationId));
+  }
+}
+
+export async function deleteScreenshot(screenshotId: number): Promise<void> {
+  await db
+    .delete(creationScreenshots)
+    .where(eq(creationScreenshots.id, screenshotId));
+}
+
+// Legacy function aliases for backward compatibility
+export const getAllBookmarks = getAllCreations;
+export const getBookmarkById = getCreationById;
+export const getBookmarkBySlug = getCreationBySlug;
+export const incrementBookmarkViews = incrementCreationViews;
+export const getUserBookmarks = getUserCreations;
+export const getPublishedBookmarks = getPublishedCreations;

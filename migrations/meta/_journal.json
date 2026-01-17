@@ -43,6 +43,13 @@
       "when": 1768607636322,
       "tag": "0005_goofy_vance_astro",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1768610000000,
+      "tag": "0006_rename_bookmarks_to_creations",
+      "breakpoints": true
     }
   ]
 }

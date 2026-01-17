@@ -6,8 +6,8 @@ import { Suspense } from "react";
 import { getPublishedBookmarks, getAllCategories } from "@/lib/data";
 
 // Component Imports
-import { BookmarkCard } from "@/components/bookmark-card";
-import { BookmarkGrid } from "@/components/bookmark-grid";
+import { CreationCard } from "@/components/creation-card";
+import { CreationGrid } from "@/components/creation-grid";
 import { HorizontalScroll } from "@/components/horizontal-scroll";
 import { AppSidebar } from "@/components/app-sidebar";
 
@@ -107,7 +107,7 @@ export default async function Home({
               </div>
               <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                 {topCreations.map((bookmark) => (
-                  <BookmarkCard
+                  <CreationCard
                     key={bookmark.id}
                     bookmark={{
                       id: bookmark.id,
@@ -155,7 +155,7 @@ export default async function Home({
               </div>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {featuredBookmarks.map((bookmark) => (
-                  <BookmarkCard
+                  <CreationCard
                     key={bookmark.id}
                     bookmark={{
                       id: bookmark.id,
@@ -209,7 +209,7 @@ export default async function Home({
                     </div>
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                       {categoryBookmarks.map((bookmark) => (
-                        <BookmarkCard
+                        <CreationCard
                           key={bookmark.id}
                           bookmark={{
                             id: bookmark.id,
@@ -264,9 +264,9 @@ export default async function Home({
               </div>
 
               {sortedBookmarks.length > 0 ? (
-                <BookmarkGrid>
+                <CreationGrid>
                   {sortedBookmarks.map((bookmark) => (
-                  <BookmarkCard
+                  <CreationCard
                     key={bookmark.id}
                     bookmark={{
                       id: bookmark.id,
@@ -296,7 +296,7 @@ export default async function Home({
                     }}
                   />
                 ))}
-              </BookmarkGrid>
+              </CreationGrid>
               ) : (
                 <div className="flex min-h-[400px] flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
                   <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">

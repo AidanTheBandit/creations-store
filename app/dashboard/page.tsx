@@ -1,8 +1,8 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getUserBookmarks, getAllCategories } from "@/lib/data";
-import { UserBookmarkManager } from "@/components/user/user-bookmark-manager";
+import { getUserCreations, getAllCategories } from "@/lib/data";
+import { UserCreationManager } from "@/components/user/user-creation-manager";
 import { LayoutGrid, FileText, FolderKanban } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -12,13 +12,13 @@ export default async function DashboardPage() {
     redirect("/auth/login");
   }
 
-  const [bookmarks, categories] = await Promise.all([
-    getUserBookmarks(session.user.id),
+  const [creations, categories] = await Promise.all([
+    getUserCreations(session.user.id),
     getAllCategories(),
   ]);
 
-  const drafts = bookmarks.filter((b) => b.status === "draft");
-  const published = bookmarks.filter((b) => b.status === "published");
+  const drafts = creations.filter((b) => b.status === "draft");
+  const published = creations.filter((b) => b.status === "published");
 
   return (
     <div className="flex min-h-screen flex-1 flex-col">
@@ -32,7 +32,7 @@ export default async function DashboardPage() {
                   My Dashboard
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  Manage your bookmarks and drafts
+                  Manage your creations and drafts
                 </p>
               </div>
             </div>
@@ -46,10 +46,10 @@ export default async function DashboardPage() {
                   </div>
                   <div>
                     <div className="text-2xl font-bold">
-                      {bookmarks.length}
+                      {creations.length}
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
-                      Total Bookmarks
+                      Total Creations
                     </div>
                   </div>
                 </div>
@@ -86,9 +86,9 @@ export default async function DashboardPage() {
               </div>
             </div>
 
-            {/* Bookmark Manager */}
-            <UserBookmarkManager
-              bookmarks={bookmarks}
+            {/* Creation Manager */}
+            <UserCreationManager
+              creations={creations}
               categories={categories}
               userId={session.user.id}
             />
