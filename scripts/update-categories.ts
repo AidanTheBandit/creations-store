@@ -1,5 +1,5 @@
 import { db } from "../db/client";
-import { categories, bookmarks } from "../db/schema";
+import { categories, creations } from "../db/schema";
 import { eq } from "drizzle-orm";
 
 const essentialCategories = [
@@ -22,7 +22,7 @@ async function updateCategories() {
 
   // First, unlink all bookmarks from categories
   console.log("Unlinking bookmarks from categories...");
-  await db.update(bookmarks).set({ categoryId: null });
+  await db.update(creations).set({ categoryId: null });
 
   // Delete all existing categories
   const allCategories = await db.select().from(categories);
