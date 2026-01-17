@@ -111,7 +111,7 @@ export function UserBookmarkManager({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <h2 className="text-lg font-semibold">
           My Bookmarks
         </h2>
         <Button
@@ -124,8 +124,8 @@ export function UserBookmarkManager({
       </div>
 
       {bookmarks.length === 0 ? (
-        <div className="text-center py-12 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
-          <p className="text-gray-500 dark:text-gray-400 mb-4">
+        <div className="text-center py-12 border border-dashed rounded-lg">
+          <p className="text-muted-foreground mb-4">
             You haven't created any bookmarks yet
           </p>
           <Button onClick={() => router.push("/dashboard/new")}>
@@ -134,14 +134,14 @@ export function UserBookmarkManager({
           </Button>
         </div>
       ) : (
-        <div className="rounded-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800">
+        <div className="rounded-md border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-gray-900 dark:text-white">Title</TableHead>
-                <TableHead className="text-gray-900 dark:text-white">Category</TableHead>
-                <TableHead className="text-gray-900 dark:text-white">Status</TableHead>
-                <TableHead className="text-right text-gray-900 dark:text-white">
+                <TableHead>Title</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">
                   Actions
                 </TableHead>
               </TableRow>
@@ -149,7 +149,7 @@ export function UserBookmarkManager({
             <TableBody>
               {bookmarks.map((bookmark) => (
                 <TableRow key={bookmark.id}>
-                  <TableCell className="font-medium text-gray-900 dark:text-white">
+                  <TableCell className="font-medium">
                     {bookmark.title}
                   </TableCell>
                   <TableCell>
@@ -163,7 +163,7 @@ export function UserBookmarkManager({
                         {bookmark.category.name}
                       </Badge>
                     ) : (
-                      <span className="text-gray-500 dark:text-gray-400">—</span>
+                      <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -215,7 +215,7 @@ export function UserBookmarkManager({
                         {isDeleting === bookmark.id.toString() ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <Trash2 className="h-4 w-4 text-red-500" />
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         )}
                       </Button>
                     </div>

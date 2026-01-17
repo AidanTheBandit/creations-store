@@ -121,7 +121,7 @@ export function BookmarkForm({
       <input type="hidden" name="id" value={bookmark?.id || ""} />
       <input type="hidden" name="slug" value={formData.slug} />
 
-      <div className="space-y-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      <div className="space-y-4 rounded-xl border bg-card p-6">
         <div className="space-y-2">
           <Label htmlFor="url">URL *</Label>
           <Input
@@ -277,7 +277,7 @@ export function BookmarkForm({
                 <SelectItem value="published">Published - Visible to everyone</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-muted-foreground">
               {formData.status === "draft"
                 ? "This bookmark will only be visible to you"
                 : "This bookmark will be visible to everyone"}

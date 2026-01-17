@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getUserBookmarks, getAllCategories } from "@/lib/data";
 import { UserBookmarkManager } from "@/components/user/user-bookmark-manager";
+import { LayoutGrid, FileText, FolderKanban } from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -20,55 +21,78 @@ export default async function DashboardPage() {
   const published = bookmarks.filter((b) => b.status === "published");
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-8">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-8">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-                My Dashboard
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">
-                Manage your bookmarks and drafts
-              </p>
+    <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-8">
+          <div className="space-y-8">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-8">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight">
+                  My Dashboard
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  Manage your bookmarks and drafts
+                </p>
+              </div>
             </div>
-          </div>
 
-          {/* Stats */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {bookmarks.length}
+            {/* Stats */}
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-xl border bg-card p-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <LayoutGrid className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold">
+                      {bookmarks.length}
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Total Bookmarks
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Total Bookmarks
+              <div className="rounded-xl border bg-card p-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <FolderKanban className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold">
+                      {published.length}
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Published
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl border bg-card p-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <FileText className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold">
+                      {drafts.length}
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Drafts
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {published.length}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Published
-              </div>
-            </div>
-            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {drafts.length}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Drafts
-              </div>
-            </div>
-          </div>
 
-          {/* Bookmark Manager */}
-          <UserBookmarkManager
-            bookmarks={bookmarks}
-            categories={categories}
-            userId={session.user.id}
-          />
+            {/* Bookmark Manager */}
+            <UserBookmarkManager
+              bookmarks={bookmarks}
+              categories={categories}
+              userId={session.user.id}
+            />
+          </div>
         </div>
       </div>
     </div>
