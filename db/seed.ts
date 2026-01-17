@@ -106,26 +106,23 @@ async function seed() {
     },
   ];
 
-  const createdCategories = await Promise.all(
-    categoryData.map(async (category) => {
-      // Try to insert first, if fails update existing
-      try {
-        const [result] = await db
-          .insert(categories)
-          .values(category)
-          .returning();
-        return result;
-      } catch (error) {
-        // If insert fails, update existing record
-        const [result] = await db
-          .update(categories)
-          .set(category)
-          .where(eq(categories.id, category.id))
-          .returning();
-        return result;
-      }
-    }),
-  );
+  const createdCategories = [];
+
+  for (const category of categoryData) {
+    // Try to insert first, if fails update existing
+    try {
+      const [result] = await db.insert(categories).values(category).returning();
+      createdCategories.push(result);
+    } catch (error) {
+      // If insert fails, update existing record
+      const [result] = await db
+        .update(categories)
+        .set(category)
+        .where(eq(categories.id, category.id))
+        .returning();
+      createdCategories.push(result);
+    }
+  }
 
   console.log(`Created ${createdCategories.length} categories`);
 
