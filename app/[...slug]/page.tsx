@@ -43,7 +43,7 @@ export async function generateMetadata(
     description:
       bookmark.description ||
       bookmark.overview ||
-      `A curated bookmark from Directory`,
+      `Boondit creations store entry for ${bookmark.title}`,
     openGraph: {
       title: bookmark.title,
       description: bookmark.description || bookmark.overview || undefined,
