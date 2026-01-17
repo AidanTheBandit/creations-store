@@ -84,6 +84,8 @@ export function CreationForm({
   }, [mode, creation]);
 
   const loadScreenshots = async () => {
+    if (!creation?.id) return;
+
     try {
       const response = await fetch(`/api/creations/${creation.id}/screenshots`);
       if (response.ok) {

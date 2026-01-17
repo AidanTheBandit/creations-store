@@ -1,5 +1,5 @@
 import { db } from "./client";
-import { bookmarks, categories } from "./schema";
+import { creations, categories } from "./schema";
 
 async function seed() {
   console.log("🌱 Seeding database...");
@@ -123,7 +123,7 @@ async function seed() {
 
   const createdBookmarks = await Promise.all(
     bookmarkData.map(async (bookmark) => {
-      const [result] = await db.insert(bookmarks).values(bookmark).returning();
+      const [result] = await db.insert(creations).values(bookmark).returning();
       return result;
     })
   );
