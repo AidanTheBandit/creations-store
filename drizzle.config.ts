@@ -5,7 +5,7 @@ export default {
   schema: "./db/schema.ts",
   out: "./migrations",
   dialect: "sqlite",
-  driver: "turso",
+  driver: "libsql",
   dbCredentials: {
     url: process.env.TURSO_DATABASE_URL!,
     authToken: process.env.TURSO_AUTH_TOKEN || undefined,
