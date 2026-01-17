@@ -258,6 +258,7 @@ export function BookmarkManager({
       const deleteData = {
         id: bookmark.id.toString(),
         url: bookmark.url,
+        userId: bookmark.userId || "",
       };
       const result = await deleteBookmark(null, deleteData);
 
