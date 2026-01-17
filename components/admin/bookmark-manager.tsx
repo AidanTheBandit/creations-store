@@ -168,7 +168,7 @@ export function BookmarkManager({
         ogImage: formData.get("ogImage") as string,
         search_results: formData.get("search_results") as string,
         categoryId: formData.get("categoryId") as string,
-        userId: formData.get("userId") as string || null,
+        userId: formData.get("userId") as string || "",
         status: "published" as const,
         isFavorite: formData.get("isFavorite") as string,
         isArchived: formData.get("isArchived") as string,
