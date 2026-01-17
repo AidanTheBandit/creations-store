@@ -215,7 +215,7 @@ export const CreationCard = ({ creation }: CreationCardProps) => {
             <div className="rounded-lg border-2 p-6 bg-white">
               <QRCodeSVG
                 value={JSON.stringify(qrCodeData)}
-                size={350}
+                size={250}
                 level={"M"}
               />
             </div>

@@ -53,7 +53,7 @@ export default async function RootLayout({
 const Header = async ({ session }: { session: any }) => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
-      <div className="flex h-12 items-center justify-between px-6">
+      <div className="flex h-12 items-center justify-between px-4 md:px-6">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 font-semibold text-sm hover:opacity-80 transition-opacity">
           <span className="text-base font-bold">{directory.name}</span>
@@ -65,7 +65,7 @@ const Header = async ({ session }: { session: any }) => {
             href="https://buymeacoffee.com/boondit"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-medium text-amber-600 hover:text-amber-700 dark:text-amber-500 dark:hover:text-amber-400 transition-colors px-3 py-1.5 rounded-md hover:bg-accent"
+            className="hidden sm:block text-sm font-medium text-amber-600 hover:text-amber-700 dark:text-amber-500 dark:hover:text-amber-400 transition-colors px-3 py-1.5 rounded-md hover:bg-accent"
           >
             ☕ Donate
           </Link>
@@ -89,7 +89,8 @@ const Header = async ({ session }: { session: any }) => {
               href="/auth/signin"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md hover:bg-accent"
             >
-              Sign In with Discord
+              <span className="sm:hidden">Sign In</span>
+              <span className="hidden sm:inline">Sign In with Discord</span>
             </Link>
           )}
         </nav>

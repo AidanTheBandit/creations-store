@@ -10,6 +10,7 @@ import { CreationCard } from "@/components/creation-card";
 import { CreationGrid } from "@/components/creation-grid";
 import { HorizontalScroll } from "@/components/horizontal-scroll";
 import { AppSidebar } from "@/components/app-sidebar";
+import { MobileMenu } from "@/components/mobile-menu";
 
 import { Sparkles, TrendingUp, Clock, FolderKanban } from "lucide-react";
 
@@ -76,23 +77,28 @@ export default async function Home({
     return acc;
   }, {} as Record<string, typeof bookmarks>);
 
+  const formattedCategories = categories.map((cat) => ({
+    id: cat.id.toString(),
+    name: cat.name,
+    color: cat.color || undefined,
+    icon: cat.icon || undefined,
+  }));
+
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <Suspense fallback={<div className="w-64 border-r" />}>
+      <Suspense fallback={<div className="hidden md:block w-64 border-r" />}>
         <AppSidebar
-          categories={categories.map((cat) => ({
-            id: cat.id.toString(),
-            name: cat.name,
-            color: cat.color || undefined,
-            icon: cat.icon || undefined,
-          }))}
+          className="hidden md:flex"
+          categories={formattedCategories}
         />
       </Suspense>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-8">
+      <main className="flex-1 overflow-y-auto w-full">
+        <div className="p-4 md:p-8">
+          <MobileMenu categories={formattedCategories} />
+          
           {/* Top Creations Section */}
           {!searchParams.search && !searchParams.category && (
             <div className="mb-12 space-y-4">

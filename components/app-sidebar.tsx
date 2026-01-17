@@ -31,7 +31,7 @@ interface AppSidebarProps {
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-export function AppSidebar({ categories, className }: AppSidebarProps) {
+export function SidebarContent({ categories, className, onSelect }: AppSidebarProps & { onSelect?: () => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentCategory = searchParams.get("category");
@@ -47,6 +47,7 @@ export function AppSidebar({ categories, className }: AppSidebarProps) {
     }
     startTransition(() => {
       router.push(`/?${params.toString()}`);
+      onSelect?.();
     });
   };
 
@@ -73,7 +74,7 @@ export function AppSidebar({ categories, className }: AppSidebarProps) {
   const isFiltered = searchParams.get("search") || searchParams.get("category");
 
   return (
-    <aside className={cn("flex h-[calc(100vh-3rem)] w-64 flex-col border-r bg-background", className)}>
+    <div className={cn("flex h-full flex-col bg-background", className)}>
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         {/* Search */}
@@ -126,6 +127,7 @@ export function AppSidebar({ categories, className }: AppSidebarProps) {
             variant={!isFiltered ? "secondary" : "ghost"}
             className="w-full justify-start"
             asChild
+            onClick={() => onSelect?.()}
           >
             <Link href="/">
               <TrendingUp className="mr-2 h-4 w-4" />
@@ -153,6 +155,14 @@ export function AppSidebar({ categories, className }: AppSidebarProps) {
           </nav>
         </div>
       </div>
+    </div>
+  );
+}
+
+export function AppSidebar(props: AppSidebarProps) {
+  return (
+    <aside className={cn("flex h-[calc(100vh-3rem)] w-64 flex-col border-r bg-background", props.className)}>
+      <SidebarContent {...props} />
     </aside>
   );
 }
