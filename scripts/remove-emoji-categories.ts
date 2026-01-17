@@ -7,7 +7,7 @@ async function removeEmojis() {
   const allCategories = await db.select().from(categories);
 
   for (const category of allCategories) {
-    if (category.icon && /[\u{1F300}-\u{1F9FF}]/u.test(category.icon)) {
+    if (category.icon && /[\u2600-\u27BF\uE000-\uF8FF\U0001F300-\U0001F9FF]/.test(category.icon)) {
       await db
         .update(categories)
         .set({ icon: null })

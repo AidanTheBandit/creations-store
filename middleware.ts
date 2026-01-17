@@ -2,7 +2,7 @@ import { boho } from "@/lib/boho";
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
-export default function middleware(req: any) {
+function customMiddleware(req: any) {
   // CVE-2025-29927: Reject middleware bypass attempts via x-middleware-subrequest header
   const middlewareSubrequest = req.headers.get("x-middleware-subrequest");
   if (middlewareSubrequest === "middleware-request") {
@@ -25,20 +25,22 @@ export default function middleware(req: any) {
     return boho.middleware(req);
   }
 
-  // User routes use NextAuth
-  if (pathname.startsWith("/dashboard")) {
-    return withAuth({
-      callbacks: {
-        authorized: ({ token }) => !!token,
-      },
-      pages: {
-        signIn: "/auth/login",
-      },
-    })(req);
-  }
-
   return NextResponse.next();
 }
+
+export default withAuth(
+  function middleware(req: any) {
+    return customMiddleware(req);
+  },
+  {
+    callbacks: {
+      authorized: ({ token }) => !!token,
+    },
+    pages: {
+      signIn: "/auth/signin",
+    },
+  }
+);
 
 export const config = {
   matcher: ["/admin/:path*", "/dashboard/:path*", "/api/admin/:path*"],
