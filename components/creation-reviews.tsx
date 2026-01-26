@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Star, Trash2, Edit2, Check, X } from "lucide-react";
+import { signIn } from "next-auth/react";
+import { Star, Trash2, Edit2, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
