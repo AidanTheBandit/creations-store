@@ -141,6 +141,7 @@ export default async function Home({
                       isArchived: bookmark.isArchived,
                       isFavorite: bookmark.isFavorite,
                       slug: bookmark.slug,
+                      averageRating: bookmark.averageRating,
                     }}
                   />
                 ))}
@@ -190,6 +191,7 @@ export default async function Home({
                       isArchived: bookmark.isArchived,
                       isFavorite: bookmark.isFavorite,
                       slug: bookmark.slug,
+                      averageRating: bookmark.averageRating,
                     }}
                   />
                 ))}
@@ -245,6 +247,7 @@ export default async function Home({
                             isArchived: bookmark.isArchived,
                             isFavorite: bookmark.isFavorite,
                             slug: bookmark.slug,
+                            averageRating: bookmark.averageRating,
                           }}
                         />
                       ))}
@@ -303,6 +306,7 @@ export default async function Home({
                       isArchived: bookmark.isArchived,
                       isFavorite: bookmark.isFavorite,
                       slug: bookmark.slug,
+                      averageRating: bookmark.averageRating,
                     }}
                   />
                 ))}

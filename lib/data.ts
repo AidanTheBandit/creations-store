@@ -165,7 +165,7 @@ export async function getUserDrafts(userId: string): Promise<(Creation & { categ
   }));
 }
 
-export async function getPublishedCreations(): Promise<(Creation & { category: Category | null; user: User | null })[]> {
+export async function getPublishedCreations(): Promise<(Creation & { category: Category | null; user: User | null; averageRating: { average: number; count: number } | null })[]> {
   const results = await db
     .select()
     .from(creations)
@@ -173,10 +173,28 @@ export async function getPublishedCreations(): Promise<(Creation & { category: C
     .leftJoin(users, eq(creations.userId, users.id))
     .where(and(eq(creations.status, "published"), ne(users.isSuspended, true)));
 
+  // Get all ratings in one query
+  const allRatings = await db
+    .select({
+      creationId: creationReviews.creationId,
+      average: sql<number>`CAST(AVG(${creationReviews.rating}) AS REAL)`,
+      count: sql<number>`COUNT(*)`,
+    })
+    .from(creationReviews)
+    .groupBy(creationReviews.creationId);
+
+  const ratingsMap = new Map(
+    allRatings.map(r => [
+      r.creationId,
+      { average: Math.round(r.average * 10) / 10, count: r.count }
+    ])
+  );
+
   return results.map(row => ({
     ...row.creations,
     category: row.categories,
     user: row.users,
+    averageRating: ratingsMap.get(row.creations.id) || null,
   }));
 }
 
