@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Star, Archive, AppWindow, Download } from "lucide-react";
+import { StarRating } from "@/components/star-rating";
 
 interface CreationCardProps {
   creation: {
@@ -41,6 +42,10 @@ interface CreationCardProps {
     isArchived: boolean;
     isFavorite: boolean;
     slug: string;
+    averageRating?: {
+      average: number;
+      count: number;
+    } | null;
   };
 }
 
@@ -169,6 +174,16 @@ export const CreationCard = ({ creation }: CreationCardProps) => {
                   </span>
                 )}
               </span>
+            )}
+            {/* Rating */}
+            {creation.averageRating && creation.averageRating.count > 0 && (
+              <div>
+                <StarRating
+                  rating={creation.averageRating.average}
+                  count={creation.averageRating.count}
+                  size="sm"
+                />
+              </div>
             )}
           </div>
 

@@ -130,6 +130,25 @@ export const creationViews = sqliteTable("creation_views", {
   creationSessionIdx: index("views_creation_session_idx").on(views.creationId, views.sessionId),
 }));
 
+// Creation Reviews table (for star ratings and comments)
+export const creationReviews = sqliteTable("creation_reviews", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  creationId: integer("creation_id").notNull().references(() => creations.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  rating: integer("rating").notNull(), // 1-5 stars
+  comment: text("comment"), // Optional text review
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+}, (reviews) => ({
+  creationIdx: index("reviews_creation_idx").on(reviews.creationId),
+  userIdx: index("reviews_user_idx").on(reviews.userId),
+  creationUserIdx: index("reviews_creation_user_idx").on(reviews.creationId, reviews.userId),
+}));
+
 // Relations
 export const creationsRelations = relations(creations, ({ one, many }) => ({
   category: one(categories, {
@@ -141,12 +160,24 @@ export const creationsRelations = relations(creations, ({ one, many }) => ({
     references: [users.id],
   }),
   screenshots: many(creationScreenshots),
+  reviews: many(creationReviews),
 }));
 
 export const creationScreenshotsRelations = relations(creationScreenshots, ({ one }) => ({
   creation: one(creations, {
     fields: [creationScreenshots.creationId],
     references: [creations.id],
+  }),
+}));
+
+export const creationReviewsRelations = relations(creationReviews, ({ one }) => ({
+  creation: one(creations, {
+    fields: [creationReviews.creationId],
+    references: [creations.id],
+  }),
+  user: one(users, {
+    fields: [creationReviews.userId],
+    references: [users.id],
   }),
 }));
 
@@ -157,6 +188,7 @@ export const categoriesRelations = relations(categories, ({ many }) => ({
 export const usersRelations = relations(users, ({ many }) => ({
   creations: many(creations),
   sessions: many(sessions),
+  reviews: many(creationReviews),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -183,6 +215,9 @@ export type NewCreationScreenshot = typeof creationScreenshots.$inferInsert;
 
 export type CreationView = typeof creationViews.$inferSelect;
 export type NewCreationView = typeof creationViews.$inferInsert;
+
+export type CreationReview = typeof creationReviews.$inferSelect;
+export type NewCreationReview = typeof creationReviews.$inferInsert;
 
 // Legacy type aliases for backward compatibility during migration
 export type Bookmark = Creation;

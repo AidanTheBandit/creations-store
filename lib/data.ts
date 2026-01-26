@@ -1,12 +1,13 @@
 import { db } from "@/db/client";
-import { creations, creationScreenshots, creationViews, categories, users } from "@/db/schema";
-import { eq, and, sql, ne } from "drizzle-orm";
+import { creations, creationScreenshots, creationViews, creationReviews, categories, users } from "@/db/schema";
+import { eq, and, sql, ne, desc } from "drizzle-orm";
 
 export type Creation = typeof creations.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type CreationScreenshot = typeof creationScreenshots.$inferSelect;
 export type CreationView = typeof creationViews.$inferSelect;
+export type CreationReview = typeof creationReviews.$inferSelect;
 
 // Legacy type aliases for backward compatibility during migration
 export type Bookmark = Creation;
@@ -30,7 +31,7 @@ export async function getAllCategories(): Promise<Category[]> {
   return await db.select().from(categories);
 }
 
-export async function getCreationById(id: number): Promise<(Creation & { category: Category | null; user: User | null; screenshots: CreationScreenshot[] }) | null> {
+export async function getCreationById(id: number): Promise<(Creation & { category: Category | null; user: User | null; screenshots: CreationScreenshot[]; averageRating: { average: number; count: number } | null }) | null> {
   const results = await db
     .select()
     .from(creations)
@@ -46,11 +47,15 @@ export async function getCreationById(id: number): Promise<(Creation & { categor
   // Fetch screenshots for this creation
   const screenshots = await getCreationScreenshots(id);
 
+  // Fetch average rating
+  const averageRating = await getCreationAverageRating(id);
+
   return {
     ...results[0].creations,
     category: results[0].categories,
     user: results[0].users,
     screenshots,
+    averageRating,
   };
 }
 
@@ -282,6 +287,106 @@ export async function deleteScreenshot(screenshotId: number): Promise<void> {
   await db
     .delete(creationScreenshots)
     .where(eq(creationScreenshots.id, screenshotId));
+}
+
+// Review functions
+export type CreationReviewWithUser = CreationReview & { user: User };
+
+export async function getCreationReviews(
+  creationId: number
+): Promise<CreationReviewWithUser[]> {
+  const results = await db
+    .select()
+    .from(creationReviews)
+    .leftJoin(users, eq(creationReviews.userId, users.id))
+    .where(eq(creationReviews.creationId, creationId))
+    .orderBy(desc(creationReviews.createdAt));
+
+  return results.map(row => ({
+    ...row.creation_reviews,
+    user: row.users!,
+  }));
+}
+
+export async function getCreationAverageRating(creationId: number): Promise<{
+  average: number;
+  count: number;
+} | null> {
+  const result = await db
+    .select({
+      average: sql<number>`COALESCE(AVG(${creationReviews.rating}), 0)`,
+      count: sql<number>`COUNT(*)`,
+    })
+    .from(creationReviews)
+    .where(eq(creationReviews.creationId, creationId));
+
+  if (result.length === 0 || result[0].count === 0) {
+    return null;
+  }
+
+  return {
+    average: Math.round(result[0].average * 10) / 10, // Round to 1 decimal
+    count: result[0].count,
+  };
+}
+
+export async function getUserReviewForCreation(
+  creationId: number,
+  userId: string
+): Promise<CreationReview | null> {
+  const result = await db
+    .select()
+    .from(creationReviews)
+    .where(
+      and(
+        eq(creationReviews.creationId, creationId),
+        eq(creationReviews.userId, userId)
+      )
+    )
+    .limit(1);
+
+  return result[0] || null;
+}
+
+export async function createReview(
+  creationId: number,
+  userId: string,
+  rating: number,
+  comment?: string
+): Promise<CreationReview> {
+  const result = await db
+    .insert(creationReviews)
+    .values({
+      creationId,
+      userId,
+      rating,
+      comment: comment || null,
+    })
+    .returning();
+
+  return result[0];
+}
+
+export async function updateReview(
+  reviewId: number,
+  rating: number,
+  comment?: string
+): Promise<CreationReview> {
+  const result = await db
+    .update(creationReviews)
+    .set({
+      rating,
+      comment: comment || null,
+      updatedAt: sql`(unixepoch())`,
+    })
+    .where(eq(creationReviews.id, reviewId))
+    .returning();
+
+  return result[0];
+}
+
+export async function deleteReview(reviewId: number): Promise<void> {
+  await db.delete(creationReviews).where(eq(creationReviews.id, reviewId));
 }
 
 // Legacy function aliases for backward compatibility
