@@ -343,6 +343,11 @@ export default async function Page({ params }: Props) {
               creationId={bookmark.id}
               initialReviews={reviews}
               initialAverageRating={bookmark.averageRating}
+              currentUser={session?.user ? {
+                id: session.user.id,
+                name: session.user.name || "User",
+                avatar: (session.user as any).image || null,
+              } : null}
             />
           </div>
         </div>
