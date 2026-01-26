@@ -19,6 +19,8 @@ import { StarRating } from "@/components/star-rating";
 // Metadata
 import { Metadata, ResolvingMetadata } from "next";
 import Markdown from "react-markdown";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 type Props = {
   params: { slug: string[] };
@@ -77,6 +79,9 @@ export default async function Page({ params }: Props) {
 
   // Fetch reviews
   const reviews = await getCreationReviews(id);
+
+  // Get current session
+  const session = await getServerSession(authOptions);
 
   // Get headers for IP tracking and URL generation
   const headersList = await headers();
