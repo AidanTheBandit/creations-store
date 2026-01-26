@@ -5,14 +5,16 @@ import { headers } from "next/headers";
 import Balancer from "react-wrap-balancer";
 
 // Database Imports
-import { getCreationById, incrementCreationViews } from "@/lib/data";
+import { getCreationById, incrementCreationViews, getCreationReviews } from "@/lib/data";
 
 // Component Imports
 import { Section, Container } from "@/components/craft";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CreationActions } from "@/components/creation-actions";
-import { ExternalLink, Calendar, AppWindow, User, Eye } from "lucide-react";
+import { CreationReviews } from "@/components/creation-reviews";
+import { ExternalLink, Calendar, AppWindow, User, Eye, Star } from "lucide-react";
+import { StarRating } from "@/components/star-rating";
 
 // Metadata
 import { Metadata, ResolvingMetadata } from "next";
@@ -72,6 +74,9 @@ export default async function Page({ params }: Props) {
   if (!bookmark) {
     notFound();
   }
+
+  // Fetch reviews
+  const reviews = await getCreationReviews(id);
 
   // Get headers for IP tracking and URL generation
   const headersList = await headers();
@@ -188,6 +193,11 @@ export default async function Page({ params }: Props) {
                   >
                     {bookmark.category.name}
                   </Badge>
+                </div>
+              )}
+              {bookmark.averageRating && bookmark.averageRating.count > 0 && (
+                <div className="flex items-center gap-2">
+                  <StarRating rating={bookmark.averageRating.average} count={bookmark.averageRating.count} size="sm" />
                 </div>
               )}
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -321,6 +331,15 @@ export default async function Page({ params }: Props) {
               </div>
             </div>
           )}
+
+          {/* Reviews Section */}
+          <div className="border-t pt-8">
+            <CreationReviews
+              creationId={bookmark.id}
+              initialReviews={reviews}
+              initialAverageRating={bookmark.averageRating}
+            />
+          </div>
         </div>
       </Container>
     </Section>
