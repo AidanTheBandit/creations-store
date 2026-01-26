@@ -184,6 +184,9 @@ export default async function Page({ params }: Props) {
                   themeColor={bookmark.themeColor}
                   author={bookmark.author}
                   pageUrl={pageUrl}
+                  proxyCode={bookmark.proxyCode}
+                  creationId={bookmark.id}
+                  isOwner={session?.user?.id === bookmark.userId}
                 />
               </div>
             </div>

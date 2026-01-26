@@ -15,6 +15,13 @@
       "when": 1769414096289,
       "tag": "0001_damp_newton_destine",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1769417020813,
+      "tag": "0002_yummy_nekra",
+      "breakpoints": true
     }
   ]
 }

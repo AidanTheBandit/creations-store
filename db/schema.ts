@@ -100,10 +100,16 @@ export const creations = sqliteTable("creations", {
 
   // Analytics
   views: integer("views").notNull().default(0),
+  proxyCode: text("proxy_code").unique(), // Unique code for /go/ redirect URLs
+
+  // Moderation
+  isFlagged: integer("is_flagged", { mode: "boolean" }).notNull().default(false),
+  flagReason: text("flag_reason"),
 }, (creations) => ({
   userIdx: index("creations_user_idx").on(creations.userId),
   statusIdx: index("creations_status_idx").on(creations.status),
   viewsIdx: index("creations_views_idx").on(creations.views),
+  proxyCodeIdx: index("creations_proxy_code_idx").on(creations.proxyCode),
 }));
 
 // Creation Screenshots table (for multiple screenshots per creation)
@@ -149,6 +155,50 @@ export const creationReviews = sqliteTable("creation_reviews", {
   creationUserIdx: index("reviews_creation_user_idx").on(reviews.creationId, reviews.userId),
 }));
 
+// Creation Clicks table - tracks all proxy link clicks
+export const creationClicks = sqliteTable("creation_clicks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  creationId: integer("creation_id").notNull().references(() => creations.id, { onDelete: "cascade" }),
+  sessionId: text("session_id").notNull(), // IP or user ID
+  userAgent: text("user_agent"), // Browser/device info
+  referrer: text("referrer"), // Source of traffic
+  clickedAt: integer("clicked_at", { mode: "timestamp" }).notNull(),
+}, (clicks) => ({
+  creationIdx: index("clicks_creation_idx").on(clicks.creationId),
+  sessionIdx: index("clicks_session_idx").on(clicks.sessionId),
+  creationSessionIdx: index("clicks_creation_session_idx").on(clicks.creationId, clicks.sessionId),
+  clickedAtIdx: index("clicks_clicked_at_idx").on(clicks.clickedAt),
+}));
+
+// Creation Installs table - tracks successful installs (confirmed opens)
+export const creationInstalls = sqliteTable("creation_installs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  creationId: integer("creation_id").notNull().references(() => creations.id, { onDelete: "cascade" }),
+  sessionId: text("session_id").notNull(),
+  userAgent: text("user_agent"),
+  installedAt: integer("installed_at", { mode: "timestamp" }).notNull(),
+}, (installs) => ({
+  creationIdx: index("installs_creation_idx").on(installs.creationId),
+  sessionIdx: index("installs_session_idx").on(installs.sessionId),
+  creationSessionIdx: index("installs_creation_session_idx").on(installs.creationId, installs.sessionId),
+  installedAtIdx: index("installs_installed_at_idx").on(installs.installedAt),
+}));
+
+// Creation Daily Stats table - pre-aggregated daily stats for performance
+export const creationDailyStats = sqliteTable("creation_daily_stats", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  creationId: integer("creation_id").notNull().references(() => creations.id, { onDelete: "cascade" }),
+  date: text("date").notNull(), // YYYY-MM-DD format
+  clicks: integer("clicks").notNull().default(0),
+  uniqueClicks: integer("unique_clicks").notNull().default(0),
+  installs: integer("installs").notNull().default(0),
+  activeUsers: integer("active_users").notNull().default(0), // Returning visitors
+}, (stats) => ({
+  creationIdx: index("daily_stats_creation_idx").on(stats.creationId),
+  dateIdx: index("daily_stats_date_idx").on(stats.date),
+  creationDateIdx: index("daily_stats_creation_date_idx").on(stats.creationId, stats.date),
+}));
+
 // Relations
 export const creationsRelations = relations(creations, ({ one, many }) => ({
   category: one(categories, {
@@ -161,6 +211,9 @@ export const creationsRelations = relations(creations, ({ one, many }) => ({
   }),
   screenshots: many(creationScreenshots),
   reviews: many(creationReviews),
+  clicks: many(creationClicks),
+  installs: many(creationInstalls),
+  dailyStats: many(creationDailyStats),
 }));
 
 export const creationScreenshotsRelations = relations(creationScreenshots, ({ one }) => ({
@@ -178,6 +231,27 @@ export const creationReviewsRelations = relations(creationReviews, ({ one }) => 
   user: one(users, {
     fields: [creationReviews.userId],
     references: [users.id],
+  }),
+}));
+
+export const creationClicksRelations = relations(creationClicks, ({ one }) => ({
+  creation: one(creations, {
+    fields: [creationClicks.creationId],
+    references: [creations.id],
+  }),
+}));
+
+export const creationInstallsRelations = relations(creationInstalls, ({ one }) => ({
+  creation: one(creations, {
+    fields: [creationInstalls.creationId],
+    references: [creations.id],
+  }),
+}));
+
+export const creationDailyStatsRelations = relations(creationDailyStats, ({ one }) => ({
+  creation: one(creations, {
+    fields: [creationDailyStats.creationId],
+    references: [creations.id],
   }),
 }));
 
@@ -218,6 +292,15 @@ export type NewCreationView = typeof creationViews.$inferInsert;
 
 export type CreationReview = typeof creationReviews.$inferSelect;
 export type NewCreationReview = typeof creationReviews.$inferInsert;
+
+export type CreationClick = typeof creationClicks.$inferSelect;
+export type NewCreationClick = typeof creationClicks.$inferInsert;
+
+export type CreationInstall = typeof creationInstalls.$inferSelect;
+export type NewCreationInstall = typeof creationInstalls.$inferInsert;
+
+export type CreationDailyStats = typeof creationDailyStats.$inferSelect;
+export type NewCreationDailyStats = typeof creationDailyStats.$inferInsert;
 
 // Legacy type aliases for backward compatibility during migration
 export type Bookmark = Creation;

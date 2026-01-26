@@ -10,7 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Download, Share2, Check } from "lucide-react";
+import { Download, Share2, Check, BarChart3 } from "lucide-react";
+import Link from "next/link";
 
 interface CreationActionsProps {
   title: string;
@@ -20,6 +21,9 @@ interface CreationActionsProps {
   themeColor?: string | null;
   author?: string | null;
   pageUrl: string;
+  proxyCode?: string | null;
+  creationId?: number;
+  isOwner?: boolean;
 }
 
 export const CreationActions = ({
@@ -30,18 +34,29 @@ export const CreationActions = ({
   themeColor,
   author,
   pageUrl,
+  proxyCode,
+  creationId,
+  isOwner = false,
 }: CreationActionsProps) => {
   const [installDialogOpen, setInstallDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Prepare QR code data
+  // Get site URL for proxy links
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+
+  // Use proxy URL if proxyCode is available, otherwise use direct URL
+  const proxyUrl = proxyCode ? `${siteUrl}/go/${proxyCode}` : url;
+
+  // Prepare QR code data with proxy URL for tracking
   const qrCodeData = {
     title,
-    url,
+    url: proxyUrl, // Use proxy URL for tracking
     description: description || "",
     iconUrl: iconUrl || "",
     themeColor: themeColor || "",
     author: author || "",
+    // Add tracking callback for install confirmation
+    installConfirmUrl: proxyCode ? `${siteUrl}/api/analytics/install` : undefined,
   };
 
   const handleShare = async () => {
@@ -86,6 +101,19 @@ export const CreationActions = ({
             </>
           )}
         </Button>
+        {isOwner && creationId && (
+          <Button
+            size="lg"
+            variant="outline"
+            className="flex-1 sm:flex-none"
+            asChild
+          >
+            <Link href={`/analytics/${creationId}`}>
+              <BarChart3 className="h-5 w-5 mr-2" />
+              Analytics
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Install Dialog with QR Code */}
@@ -108,6 +136,11 @@ export const CreationActions = ({
             <p className="text-sm text-muted-foreground text-center">
               Point your R1 camera at the QR code to install
             </p>
+            {proxyCode && (
+              <p className="text-xs text-muted-foreground text-center">
+                Analytics tracking enabled via proxy URL
+              </p>
+            )}
           </div>
         </DialogContent>
       </Dialog>

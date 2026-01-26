@@ -42,6 +42,7 @@ interface CreationCardProps {
     isArchived: boolean;
     isFavorite: boolean;
     slug: string;
+    proxyCode?: string | null;
     averageRating?: {
       average: number;
       count: number;
@@ -60,14 +61,22 @@ export const CreationCard = ({ creation }: CreationCardProps) => {
   // Use iconUrl first, then fallback to favicon, then ogImage
   const iconSrc = creation.iconUrl || creation.favicon || creation.ogImage;
 
-  // Prepare QR code data (without screenshotUrl)
+  // Get site URL for proxy links
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+
+  // Use proxy URL if proxyCode is available, otherwise use direct URL
+  const proxyUrl = creation.proxyCode ? `${siteUrl}/go/${creation.proxyCode}` : creation.url;
+
+  // Prepare QR code data (with proxy URL for tracking if available)
   const qrCodeData = {
     title: creation.title,
-    url: creation.url,
+    url: proxyUrl,
     description: creation.description || "",
     iconUrl: creation.iconUrl || "",
     themeColor: creation.themeColor || "",
     author: creation.author || "",
+    // Add tracking callback for install confirmation
+    installConfirmUrl: creation.proxyCode ? `${siteUrl}/api/analytics/install` : undefined,
   };
 
   // Create URL in format: id-slug (for SEO and handling duplicates)
