@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
-import { signIn } from "next-auth/react";
 import { Star, Trash2, Edit2, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,14 +30,19 @@ interface CreationReviewsProps {
   creationId: number;
   initialReviews: Review[];
   initialAverageRating: { average: number; count: number } | null;
+  currentUser?: {
+    id: string;
+    name: string;
+    avatar?: string | null;
+  } | null;
 }
 
 export function CreationReviews({
   creationId,
   initialReviews,
   initialAverageRating,
+  currentUser = null,
 }: CreationReviewsProps) {
-  const { data: session } = useSession();
   const [reviews, setReviews] = useState<Review[]>(initialReviews);
   const [averageRating, setAverageRating] = useState(initialAverageRating);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,8 +58,8 @@ export function CreationReviews({
   const [deletingReviewId, setDeletingReviewId] = useState<number | null>(null);
 
   // Find user's existing review
-  const userReview = session?.user
-    ? reviews.find((r) => r.user.id === session.user.id)
+  const userReview = currentUser
+    ? reviews.find((r) => r.user.id === currentUser.id)
     : null;
 
   useEffect(() => {
@@ -68,7 +71,7 @@ export function CreationReviews({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!session?.user || rating === 0) return;
+    if (!currentUser || rating === 0) return;
 
     setIsSubmitting(true);
     setMessage(null);
@@ -105,9 +108,9 @@ export function CreationReviews({
           {
             ...data,
             user: {
-              id: session.user.id,
-              name: session.user.name || "User",
-              avatar: (session.user as any).image || null,
+              id: currentUser.id,
+              name: currentUser.name || "User",
+              avatar: currentUser.avatar || null,
             },
           },
           ...prev,
@@ -240,8 +243,21 @@ export function CreationReviews({
         </div>
       )}
 
-      {/* Review Form */}
-      {session?.user && (
+      {/* Review Form or Sign In Prompt */}
+      {!currentUser ? (
+        <div className="border rounded-lg p-6 text-center">
+          <h3 className="font-semibold mb-2">Sign in to review</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            You need to be signed in to leave a review for this creation.
+          </p>
+          <Button asChild>
+            <a href="/auth/signin">
+              <LogIn className="h-4 w-4 mr-2" />
+              Sign In
+            </a>
+          </Button>
+        </div>
+      ) : (
         <div className="border rounded-lg p-4 space-y-4">
           <h3 className="font-semibold">
             {userReview ? "Your Review" : "Write a Review"}
