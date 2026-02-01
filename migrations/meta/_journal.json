@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1768625334086,
+      "tag": "0000_overrated_mystique",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1769414096289,
+      "tag": "0001_damp_newton_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1769417020813,
+      "tag": "0002_yummy_nekra",
+      "breakpoints": true
+    }
+  ]
+}
