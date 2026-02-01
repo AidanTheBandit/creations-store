@@ -77,7 +77,7 @@ export function CreationReviews({
     setMessage(null);
 
     try {
-      const method = userReview ? "PUT" : "POST";
+      const method = "POST";
       const url = `/api/creations/${creationId}/reviews`;
 
       const response = await fetch(url, {
@@ -316,8 +316,8 @@ export function CreationReviews({
                   {isSubmitting
                     ? "Submitting..."
                     : userReview
-                    ? "Update Review"
-                    : "Submit Review"}
+                      ? "Update Review"
+                      : "Submit Review"}
                 </Button>
                 {userReview && !isEditing && (
                   <>
