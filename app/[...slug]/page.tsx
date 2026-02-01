@@ -34,6 +34,12 @@ export async function generateMetadata(
   const slugParam = params.slug.join('/');
   const id = parseInt(slugParam.split('-')[0]);
 
+  if (isNaN(id)) {
+    return {
+      title: "Not Found",
+    };
+  }
+
   const bookmark = await getCreationById(id);
 
   if (!bookmark) {
@@ -70,6 +76,10 @@ export default async function Page({ params }: Props) {
   // Parse id from the URL (format: id-slug)
   const slugParam = params.slug.join('/');
   const id = parseInt(slugParam.split('-')[0]);
+
+  if (isNaN(id)) {
+    notFound();
+  }
 
   const bookmark = await getCreationById(id);
 
