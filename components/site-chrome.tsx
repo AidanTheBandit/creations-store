@@ -74,12 +74,20 @@ function Header({ user }: { user: ChromeUser }) {
           {user ? (
             <UserMenu username={user.username} avatarUrl={user.avatarUrl} />
           ) : (
-            <Link
-              href="/auth/signin"
-              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
-            >
-              Sign In
-            </Link>
+            <div className="ml-2 flex items-center gap-2">
+              <Link
+                href="/auth/signin"
+                className="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-card"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/auth/signup"
+                className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
+              >
+                Sign up
+              </Link>
+            </div>
           )}
         </nav>
       </div>
