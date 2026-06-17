@@ -5,9 +5,9 @@ import { hashBearerForLookup } from '@/lib/auth/api-key';
 
 interface ConnectedDevice {
   socket: any; // Socket.IO socket
-  apiKeyHash: string;
+  deviceId: string;
+  apiKeyHash: string; // the key the device connected with (informational)
   userId: string | null;
-  deviceId?: string | null;
   linkId: string | null;
   connectedAt: string;
   userAgent: string;
@@ -24,9 +24,9 @@ interface PendingRequest {
 
 interface R1AGlobal {
   io: any;
-  connectedDevices: Map<string, ConnectedDevice>;
+  connectedDevices: Map<string, ConnectedDevice>; // keyed by device_id
   pendingRequests: Map<string, PendingRequest>;
-  requestDeviceMap: Map<string, string>;
+  requestDeviceMap: Map<string, string>; // requestId -> device_id
   hashApiKey: (key: string) => string;
   generateRequestId: () => string;
 }
@@ -89,10 +89,12 @@ export async function authenticateApiKey(
 
 // ─── Device Lookup ─────────────────────────────────────────────
 
-export function getConnectedDevice(apiKeyHash: string): ConnectedDevice | null {
+// connectedDevices is keyed by device_id (a device has one socket but may have
+// many API keys), so look up by the deviceId resolved from the caller's key.
+export function getConnectedDevice(deviceId: string): ConnectedDevice | null {
   const r1a = getR1A();
   if (!r1a) return null;
-  return r1a.connectedDevices.get(apiKeyHash) || null;
+  return r1a.connectedDevices.get(deviceId) || null;
 }
 
 // ─── Chat Proxy ────────────────────────────────────────────────
@@ -103,7 +105,7 @@ export interface ChatProxyResult {
 }
 
 export async function proxyChatCompletion(
-  apiKeyHash: string,
+  deviceId: string,
   payload: {
     message: string;
     originalMessage?: string;
@@ -118,15 +120,15 @@ export async function proxyChatCompletion(
   const r1a = getR1A();
   if (!r1a) throw new Error('R1A server not initialized');
 
-  const device = r1a.connectedDevices.get(apiKeyHash);
+  const device = r1a.connectedDevices.get(deviceId);
   if (!device || !device.socket.connected) {
     throw new Error('Device not connected');
   }
 
   // Check for existing pending request on this device
   const entries = Array.from(r1a.requestDeviceMap.entries());
-  for (const [reqId, hash] of entries) {
-    if (hash === apiKeyHash && r1a.pendingRequests.has(reqId)) {
+  for (const [reqId, dev] of entries) {
+    if (dev === deviceId && r1a.pendingRequests.has(reqId)) {
       const pending = r1a.pendingRequests.get(reqId)!;
       // If older than 30s, clean it up
       if (Date.now() - pending.createdAt > 30000) {
@@ -155,7 +157,7 @@ export async function proxyChatCompletion(
       timeout,
       createdAt: Date.now(),
     });
-    r1a.requestDeviceMap.set(requestId, apiKeyHash);
+    r1a.requestDeviceMap.set(requestId, deviceId);
   });
 
   // Emit to device
@@ -206,7 +208,7 @@ function logUsage(userId: string, deviceId: string): void {
 // ─── TTS Proxy ─────────────────────────────────────────────────
 
 export async function proxyTTS(
-  apiKeyHash: string,
+  deviceId: string,
   payload: {
     text: string;
     voice?: string;
@@ -216,7 +218,7 @@ export async function proxyTTS(
   const r1a = getR1A();
   if (!r1a) throw new Error('R1A server not initialized');
 
-  const device = r1a.connectedDevices.get(apiKeyHash);
+  const device = r1a.connectedDevices.get(deviceId);
   if (!device || !device.socket.connected) {
     throw new Error('Device not connected');
   }
@@ -231,7 +233,7 @@ export async function proxyTTS(
     }, 30000);
 
     r1a.pendingRequests.set(requestId, { resolve, reject, timeout, createdAt: Date.now() });
-    r1a.requestDeviceMap.set(requestId, apiKeyHash);
+    r1a.requestDeviceMap.set(requestId, deviceId);
   });
 
   device.socket.emit('text_to_speech', {

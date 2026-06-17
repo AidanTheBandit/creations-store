@@ -39,9 +39,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'empty_message' }, { status: 400 });
   }
 
-  // Find which of this user's active keys belongs to a currently-connected
-  // device. The socket registers under hashApiKey(plaintext), which equals the
-  // key_hash column — so we can match the in-memory map directly.
+  // Find a currently-connected device this user owns. connectedDevices is
+  // keyed by device_id, and every api_key row carries its device_id — so any
+  // of the user's active keys points us at the live socket.
   const r1a = getR1A();
   if (!r1a) {
     return NextResponse.json({ error: 'bridge_unavailable' }, { status: 503 });
@@ -50,18 +50,18 @@ export async function POST(req: NextRequest) {
   const supabase = createAdminClient();
   const { data: userKeys } = await supabase
     .from('api_keys')
-    .select('key_hash')
+    .select('device_id')
     .eq('user_id', user.id)
     .eq('is_active', true);
 
-  const connectedHash = (userKeys || [])
-    .map((k) => k.key_hash as string)
-    .find((hash) => {
-      const dev = r1a.connectedDevices.get(hash);
+  const connectedDeviceId = (userKeys || [])
+    .map((k) => k.device_id as string)
+    .find((deviceId) => {
+      const dev = deviceId && r1a.connectedDevices.get(deviceId);
       return dev && dev.socket?.connected;
     });
 
-  if (!connectedHash) {
+  if (!connectedDeviceId) {
     return NextResponse.json({ error: 'device_offline' }, { status: 503 });
   }
 
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     : userMessage;
 
   try {
-    const result = await proxyChatCompletion(connectedHash, {
+    const result = await proxyChatCompletion(connectedDeviceId, {
       message: messageText,
       originalMessage: userMessage,
       model: 'r1-command',

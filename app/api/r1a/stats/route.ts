@@ -68,20 +68,21 @@ export async function GET() {
     }
     const daily = Array.from(buckets, ([date, requests]) => ({ date, requests }));
 
-    // Device online status: check the in-memory connectedDevices map for any
-    // apiKeyHash that belongs to this user.
+    // Device online status: connectedDevices is keyed by device_id, so check
+    // whether any device this user owns (any of their api_keys' device_ids) has
+    // a live socket.
     let deviceOnline = false;
     const r1a = getR1A();
     if (r1a && r1a.connectedDevices.size > 0) {
       const { data: userKeys } = await supabase
         .from('api_keys')
-        .select('key_hash')
+        .select('device_id')
         .eq('user_id', user.id)
         .eq('is_active', true);
 
       if (userKeys) {
         for (const k of userKeys) {
-          if (r1a.connectedDevices.has(k.key_hash)) {
+          if (k.device_id && r1a.connectedDevices.has(k.device_id)) {
             deviceOnline = true;
             break;
           }

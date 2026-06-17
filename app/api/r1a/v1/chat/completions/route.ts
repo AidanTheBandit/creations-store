@@ -4,7 +4,7 @@ import { authenticateApiKey, proxyChatCompletion } from '@/lib/r1a/store';
 export async function POST(request: NextRequest) {
   // Authenticate
   const auth = await authenticateApiKey(request.headers.get('authorization'));
-  if (!auth.authenticated || !auth.apiKeyHash) {
+  if (!auth.authenticated || !auth.deviceId) {
     return NextResponse.json(
       { error: { message: auth.error || 'Authentication failed', type: 'authentication_failed' } },
       { status: 401 },
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await proxyChatCompletion(auth.apiKeyHash, {
+    const result = await proxyChatCompletion(auth.deviceId, {
       message: messageText,
       originalMessage: userMessage,
       model,

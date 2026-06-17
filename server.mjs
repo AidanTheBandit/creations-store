@@ -31,9 +31,11 @@ const io = new Server(httpServer, {
 });
 
 // ─── In-Memory State (shared via globalThis for API routes) ────
-// connectedDevices: apiKeyHash → { socket, userId, linkId, connectedAt }
+// connectedDevices: device_id → { socket, userId, apiKeyHash, connectedAt }
+//   Keyed by DEVICE id (not key hash) so any of a user's API keys can reach
+//   their one connected R1.
 // pendingRequests:  requestId → { resolve, reject, timeout, createdAt }
-// requestDeviceMap: requestId → apiKeyHash (security: verify response from correct device)
+// requestDeviceMap: requestId → device_id (security: verify response from correct device)
 
 const connectedDevices = new Map();
 const pendingRequests = new Map();
@@ -120,26 +122,31 @@ io.on('connection', async (socket) => {
   // The socket may have disconnected while we were awaiting the DB.
   if (!socket.connected) return;
 
-  // Check if this key hash is already connected (only after validation, so an
-  // unverified client can never evict a live device).
-  const existing = connectedDevices.get(apiKeyHash);
-  if (existing && existing.socket.connected) {
-    // Disconnect the old connection (allow reconnection from same device)
+  // Register the socket under the DEVICE id, not the API-key hash. A device has
+  // one physical connection but can have many API keys — keying by device means
+  // ANY of the user's active keys can reach the connected R1 (the chat/TTS proxy
+  // looks the device up by id too). Keying by key hash forced the caller to use
+  // the exact same key the R1 connected with.
+  const deviceId = keyRecord.device_id;
+
+  // If this device already has a live socket, disconnect the old one (a fresh
+  // connection from the same R1 supersedes it).
+  const existing = connectedDevices.get(deviceId);
+  if (existing && existing.socket.connected && existing.socket !== socket) {
     existing.socket.disconnect(true);
   }
 
-  // Register the device
-  connectedDevices.set(apiKeyHash, {
+  connectedDevices.set(deviceId, {
     socket,
+    deviceId,
     apiKeyHash,
     userId: keyRecord.user_id,
-    deviceId: keyRecord.device_id,
     linkId: null,
     connectedAt: new Date().toISOString(),
     userAgent: socket.handshake.headers['user-agent'] || 'unknown',
   });
 
-  console.log(`[R1A] Device connected (${apiKeyHash.substring(0, 12)}...)`);
+  console.log(`[R1A] Device connected (${deviceId})`);
   console.log(`[R1A] Total connected devices: ${connectedDevices.size}`);
 
   // Send connection confirmation
@@ -165,9 +172,9 @@ io.on('connection', async (socket) => {
       return;
     }
 
-    // Security: verify response came from the right device
-    const expectedHash = requestDeviceMap.get(requestId);
-    if (expectedHash !== apiKeyHash) {
+    // Security: verify response came from the right device (by device id).
+    const expectedDevice = requestDeviceMap.get(requestId);
+    if (expectedDevice !== deviceId) {
       console.log(`[R1A] Security violation: response from wrong device`);
       return;
     }
@@ -196,8 +203,8 @@ io.on('connection', async (socket) => {
       return;
     }
 
-    const expectedHash = requestDeviceMap.get(requestId);
-    if (expectedHash !== apiKeyHash) {
+    const expectedDevice = requestDeviceMap.get(requestId);
+    if (expectedDevice !== deviceId) {
       console.log(`[R1A] Security violation: TTS response from wrong device`);
       return;
     }
@@ -234,7 +241,7 @@ io.on('connection', async (socket) => {
   // ─── System Info ─────────────────────────────────────────────
   socket.on('system_info', (data) => {
     console.log(`[R1A] System info received from device`);
-    const device = connectedDevices.get(apiKeyHash);
+    const device = connectedDevices.get(deviceId);
     if (device) {
       device.systemInfo = data;
       device.lastSystemInfoAt = new Date().toISOString();
@@ -245,8 +252,8 @@ io.on('connection', async (socket) => {
   socket.on('disconnect', () => {
     // Clean up pending requests for this device
     const toClean = [];
-    for (const [reqId, hash] of requestDeviceMap.entries()) {
-      if (hash === apiKeyHash) toClean.push(reqId);
+    for (const [reqId, dev] of requestDeviceMap.entries()) {
+      if (dev === deviceId) toClean.push(reqId);
     }
 
     for (const reqId of toClean) {
@@ -259,9 +266,13 @@ io.on('connection', async (socket) => {
       }
     }
 
-    // Remove from connected devices
-    connectedDevices.delete(apiKeyHash);
-    console.log(`[R1A] Device disconnected (${apiKeyHash.substring(0, 12)}...)`);
+    // Only remove the map entry if it still points at THIS socket — a newer
+    // connection for the same device may have already replaced it.
+    const current = connectedDevices.get(deviceId);
+    if (current && current.socket === socket) {
+      connectedDevices.delete(deviceId);
+    }
+    console.log(`[R1A] Device disconnected (${deviceId})`);
     console.log(`[R1A] Total connected devices: ${connectedDevices.size}`);
   });
 });
