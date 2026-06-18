@@ -39,6 +39,10 @@ CREATE POLICY "store_feed_seen_owner" ON store_feed_seen FOR ALL
   USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Expire seen rows after 14 days so the catalog can resurface at small scale.
+-- Unschedule any prior job of the same name first so this migration is
+-- safely re-runnable (cron.schedule otherwise errors on a duplicate name).
+SELECT cron.unschedule('cleanup-store-feed-seen')
+WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'cleanup-store-feed-seen');
 SELECT cron.schedule(
   'cleanup-store-feed-seen',
   '17 * * * *',
