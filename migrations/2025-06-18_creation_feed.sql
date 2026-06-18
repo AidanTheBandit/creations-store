@@ -125,8 +125,12 @@ BEGIN
     WHERE b.user_id <> p_user_id
     GROUP BY b.user_id;
 
+  -- Collaborative candidates (may be empty if no neighbors share likes) UNIONed
+  -- with a global-quality backfill, so a user who has liked things but has no
+  -- overlapping neighbors still gets a full feed instead of an empty one.
+  -- CF scores are boosted above any quality score so they always rank first.
   RETURN QUERY
-  WITH raw AS (
+  WITH cf AS (
     SELECT
       b.creation_id AS cid,
       SUM(
@@ -138,21 +142,39 @@ BEGIN
     JOIN _neighbors n ON n.user_id = b.user_id
     WHERE b.creation_id NOT IN (SELECT creation_id FROM _my_likes)
     GROUP BY b.creation_id
+  ),
+  collaborative AS (
+    SELECT
+      raw.cid AS id,
+      -- +1000 keeps every CF item ahead of quality-only items.
+      (1000 + raw.cf_score * COALESCE(q.quality_mult, 1.0))::numeric AS score,
+      'collaborative'::text AS reason
+    FROM cf raw
+    JOIN store_creations c ON c.id = raw.cid
+    LEFT JOIN creation_quality_scores q ON q.id = raw.cid
+    WHERE c.status = 'published'
+      AND c.user_id IS DISTINCT FROM p_user_id
+  ),
+  quality AS (
+    SELECT q.id, q.qscore::numeric AS score, 'quality_fallback'::text AS reason
+    FROM creation_quality_scores q
+    JOIN store_creations c ON c.id = q.id
+    WHERE c.user_id IS DISTINCT FROM p_user_id
+  ),
+  merged AS (
+    SELECT * FROM collaborative
+    UNION
+    SELECT * FROM quality
+      WHERE id NOT IN (SELECT id FROM collaborative)
   )
-  SELECT
-    raw.cid AS id,
-    (raw.cf_score * COALESCE(q.quality_mult, 1.0))::numeric AS score,
-    'collaborative'::text
-  FROM raw
-  JOIN store_creations c ON c.id = raw.cid
-  LEFT JOIN creation_quality_scores q ON q.id = raw.cid
-  WHERE c.status = 'published'
-    AND c.user_id IS DISTINCT FROM p_user_id
+  SELECT m.id, m.score, m.reason
+  FROM merged m
+  WHERE m.id NOT IN (SELECT creation_id FROM _my_likes)
     AND NOT EXISTS (
       SELECT 1 FROM store_feed_seen s
-      WHERE s.user_id = p_user_id AND s.creation_id = raw.cid
+      WHERE s.user_id = p_user_id AND s.creation_id = m.id
     )
-  ORDER BY score DESC
+  ORDER BY m.score DESC NULLS LAST
   LIMIT p_limit OFFSET p_offset;
 END;
 $$;
