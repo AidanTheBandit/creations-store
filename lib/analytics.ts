@@ -473,6 +473,35 @@ export async function recordDetailClick(
 ): Promise<void> {
   const supabase = db();
 
+  // Only count clicks on PUBLISHED creations. Authors repeatedly opening their
+  // own draft was inflating "Views" (which counts store_clicks rows).
+  const { data: creation, error: statusErr } = await supabase
+    .from("store_creations")
+    .select("status")
+    .eq("id", creationId)
+    .maybeSingle();
+  if (statusErr) {
+    console.error("[analytics] recordDetailClick: status lookup failed:", statusErr.message);
+    return;
+  }
+  if (!creation || creation.status !== "published") return;
+
+  // Dedup per session within the last hour (mirrors incrementCreationViews),
+  // so refreshing / re-opening a creation doesn't recount a view every time.
+  const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
+  const { data: recent, error: lookupErr } = await supabase
+    .from("store_clicks")
+    .select("id")
+    .eq("creation_id", creationId)
+    .eq("session_id", sessionId)
+    .gt("clicked_at", oneHourAgo)
+    .limit(1);
+  if (lookupErr) {
+    console.error("[analytics] recordDetailClick: dedup lookup failed:", lookupErr.message);
+    return;
+  }
+  if (recent && recent.length > 0) return;
+
   const { error } = await supabase.from("store_clicks").insert({
     creation_id: creationId,
     session_id: sessionId,

@@ -49,6 +49,14 @@ export function Experience({
     markSeen([current.id]);
     maybePrefetch(idx);
 
+    // Contribute to the creation's analytics (published-gated + deduped on the
+    // server, so this won't inflate views on drafts or repeat opens).
+    void fetch("/api/creation/view", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ creationId: current.id }),
+    }).catch(() => {});
+
     // If the iframe hasn't fired `load` within 4s, assume it's blocked.
     if (loadTimer.current) clearTimeout(loadTimer.current);
     loadTimer.current = setTimeout(() => {
