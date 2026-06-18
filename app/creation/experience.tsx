@@ -13,12 +13,12 @@ export function Experience({
   linked,
   startIndex,
   onExit,
-  onLogout,
+  onAccount,
 }: {
   linked: boolean;
   startIndex: number;
   onExit: () => void;
-  onLogout: () => void;
+  onAccount: () => void;
 }) {
   const { items, loading, error, exhausted, maybePrefetch, markSeen } = useFeed();
   const [idx, setIdx] = useState(startIndex);
@@ -158,12 +158,22 @@ export function Experience({
                 ? "Check your connection and try again."
                 : "Come back soon — new creations are added all the time."}
             </p>
-            <button
-              onClick={onExit}
-              className="mt-1 rounded bg-muted px-3 py-1 text-[10px] text-foreground active:scale-95"
-            >
-              Back
-            </button>
+            <div className="mt-1 flex gap-1.5">
+              <button
+                onClick={onExit}
+                className="rounded bg-muted px-3 py-1 text-[10px] text-foreground active:scale-95"
+              >
+                Back
+              </button>
+              {/* Always offer Account here so a linked device with a corrupt
+                  key / empty feed can still reach logout and isn't trapped. */}
+              <button
+                onClick={onAccount}
+                className="rounded bg-card px-3 py-1 text-[10px] text-foreground active:scale-95"
+              >
+                Account
+              </button>
+            </div>
           </>
         )}
       </div>
@@ -225,7 +235,7 @@ export function Experience({
         />
       )}
 
-      {/* Top-right controls: interact toggle + logout. Always above the rail. */}
+      {/* Top-right controls: interact toggle + account. Always above the rail. */}
       <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5">
         {!frameBlocked &&
           (interacting ? (
@@ -243,21 +253,13 @@ export function Experience({
               Use this
             </button>
           ))}
-        {linked && (
-          <button
-            onClick={async () => {
-              try {
-                await fetch("/api/unlink-r1", { method: "POST" });
-              } catch {
-                /* best effort */
-              }
-              onLogout();
-            }}
-            className="rounded-full bg-black/60 px-2 py-1 text-[9px] font-medium text-white active:scale-95"
-          >
-            Log out
-          </button>
-        )}
+        <button
+          onClick={onAccount}
+          aria-label="Account"
+          className="rounded-full bg-black/60 px-2 py-1 text-[9px] font-medium text-white active:scale-95"
+        >
+          Account
+        </button>
       </div>
 
       {/* Bottom chrome: title + save. Sits above the overlay so it stays tappable. */}

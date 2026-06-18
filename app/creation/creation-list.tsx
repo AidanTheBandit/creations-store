@@ -12,10 +12,12 @@ export function CreationList({
   linked,
   username,
   onOpen,
+  onAccount,
 }: {
   linked: boolean;
   username: string | null;
   onOpen: (index: number) => void;
+  onAccount: () => void;
 }) {
   const { items, loading, error, maybePrefetch } = useFeed();
   const [focus, setFocus] = useState(0);
@@ -38,9 +40,12 @@ export function CreationList({
       {/* Header */}
       <div className="flex h-8 shrink-0 items-center justify-between px-3">
         <span className="text-xs font-bold text-primary">For You</span>
-        <span className="text-[9px] text-muted-foreground">
+        <button
+          onClick={onAccount}
+          className="text-[9px] text-muted-foreground underline-offset-2 active:scale-95 hover:underline"
+        >
           {linked ? `@${username}` : "Guest"}
-        </span>
+        </button>
       </div>
 
       {loading ? (

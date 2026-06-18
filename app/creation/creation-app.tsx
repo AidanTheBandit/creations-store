@@ -25,6 +25,10 @@ export function CreationApp() {
   // past the first item drops to the list overview; opening a list row returns.
   const [mode, setMode] = useState<"list" | "experience">("experience");
   const [startIndex, setStartIndex] = useState(0);
+  // Account overlay — reachable from every screen (incl. the empty feed state)
+  // so a user with a corrupted/expired key is never trapped without a logout.
+  const [showAccount, setShowAccount] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const scanAbortRef = useRef<AbortController | null>(null);
@@ -154,15 +158,41 @@ export function CreationApp() {
     setMode("experience");
   }, []);
   const backToList = useCallback(() => setMode("list"), []);
-  // Logout from the device client: the cookie was already cleared server-side
-  // by /api/unlink-r1; drop to the unlinked screen.
-  const handleLogout = useCallback(() => {
+  // Logout from the device client. Clears the boondit_cs_dt cookie server-side
+  // (works even when the key is corrupt — it's an unconditional cookie clear),
+  // then drops to the unlinked screen.
+  const handleLogout = useCallback(async () => {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/unlink-r1", { method: "POST" });
+    } catch {
+      /* best effort — the cookie clear is the important part */
+    }
+    setLoggingOut(false);
+    setShowAccount(false);
     setMode("experience");
     setStartIndex(0);
     setState({ kind: "unlinked" });
   }, []);
 
   // ─── Render ───────────────────────────────────────────────
+  // Account overlay takes precedence over everything once opened, so it's
+  // reachable from any "ready" sub-screen (list, experience, empty feed).
+  if (showAccount && state.kind === "ready") {
+    return (
+      <AccountScreen
+        user={state.user}
+        loggingOut={loggingOut}
+        onBack={() => setShowAccount(false)}
+        onLogout={handleLogout}
+        onLink={() => {
+          setShowAccount(false);
+          startScan();
+        }}
+      />
+    );
+  }
+
   if (state.kind === "booting") {
     return <Screen><p className="text-xs opacity-60">Loading…</p></Screen>;
   }
@@ -245,13 +275,14 @@ export function CreationApp() {
       linked={linked}
       username={state.user?.username ?? null}
       onOpen={openExperience}
+      onAccount={() => setShowAccount(true)}
     />
   ) : (
     <Experience
       linked={linked}
       startIndex={startIndex}
       onExit={backToList}
-      onLogout={handleLogout}
+      onAccount={() => setShowAccount(true)}
     />
   );
 }
@@ -260,6 +291,76 @@ function Screen({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative flex h-full w-full flex-col items-center justify-center bg-background p-3 text-center font-sans text-foreground">
       {children}
+    </div>
+  );
+}
+
+// Dedicated account screen (mirrors rhythm). Always reachable via the header
+// account button, so logging out / re-linking never requires a working key.
+function AccountScreen({
+  user,
+  loggingOut,
+  onBack,
+  onLogout,
+  onLink,
+}: {
+  user: CreationUser | null;
+  loggingOut: boolean;
+  onBack: () => void;
+  onLogout: () => void;
+  onLink: () => void;
+}) {
+  return (
+    <div className="relative flex h-full w-full flex-col bg-background font-sans text-foreground">
+      <div className="flex h-8 shrink-0 items-center justify-between px-3">
+        <button
+          onClick={onBack}
+          className="text-[10px] text-muted-foreground active:scale-95"
+        >
+          ← Back
+        </button>
+        <span className="text-xs font-bold text-primary">Account</span>
+        <span className="w-8" />
+      </div>
+
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+        {user ? (
+          <>
+            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border bg-muted text-base font-bold">
+              {user.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
+              ) : (
+                (user.username?.[0] || "?").toUpperCase()
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-semibold">@{user.username}</p>
+              <p className="text-[9px] text-muted-foreground">Linked to this R1</p>
+            </div>
+            <button
+              onClick={onLogout}
+              disabled={loggingOut}
+              className="mt-1 rounded bg-destructive px-4 py-1.5 text-[11px] font-semibold text-destructive-foreground active:scale-95 disabled:opacity-60"
+            >
+              {loggingOut ? "Logging out…" : "Log out"}
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-xs font-semibold">Browsing as guest</p>
+            <p className="px-3 text-[9px] leading-snug text-muted-foreground">
+              Link your Boondit account to save creations across devices.
+            </p>
+            <button
+              onClick={onLink}
+              className="mt-1 rounded bg-primary px-4 py-1.5 text-[11px] font-semibold text-primary-foreground active:scale-95"
+            >
+              Link account
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
