@@ -102,16 +102,21 @@ BEGIN
   SELECT EXISTS (SELECT 1 FROM _my_likes) INTO v_has_likes;
 
   IF NOT v_has_likes THEN
-    -- Cold start: global quality, excluding already-seen.
+    -- Cold start: global quality, excluding already-seen. Join store_creations
+    -- to defensively re-check published + drop the self-referential store
+    -- creation (its url points back at /creation — would recurse in the feed).
     RETURN QUERY
       -- qscore is double precision (exp/ln in the view); the function returns
       -- numeric, so cast or Postgres raises "structure of query does not match".
       SELECT q.id, q.qscore::numeric AS score, 'quality_fallback'::text
       FROM creation_quality_scores q
-      WHERE NOT EXISTS (
-        SELECT 1 FROM store_feed_seen s
-        WHERE s.user_id = p_user_id AND s.creation_id = q.id
-      )
+      JOIN store_creations c ON c.id = q.id
+      WHERE c.status = 'published'
+        AND c.url NOT ILIKE '%boondit.site/creation%'
+        AND NOT EXISTS (
+          SELECT 1 FROM store_feed_seen s
+          WHERE s.user_id = p_user_id AND s.creation_id = q.id
+        )
       ORDER BY q.qscore DESC NULLS LAST
       LIMIT p_limit OFFSET p_offset;
     RETURN;
@@ -154,18 +159,22 @@ BEGIN
     LEFT JOIN creation_quality_scores q ON q.id = raw.cid
     WHERE c.status = 'published'
       AND c.user_id IS DISTINCT FROM p_user_id
+      AND c.url NOT ILIKE '%boondit.site/creation%'
   ),
   quality AS (
-    SELECT q.id, q.qscore::numeric AS score, 'quality_fallback'::text AS reason
+    SELECT q.id AS qid, q.qscore::numeric AS score, 'quality_fallback'::text AS reason
     FROM creation_quality_scores q
     JOIN store_creations c ON c.id = q.id
     WHERE c.user_id IS DISTINCT FROM p_user_id
+      AND c.url NOT ILIKE '%boondit.site/creation%'
   ),
   merged AS (
-    SELECT * FROM collaborative
+    SELECT collaborative.id, collaborative.score, collaborative.reason
+    FROM collaborative
     UNION
-    SELECT * FROM quality
-      WHERE id NOT IN (SELECT id FROM collaborative)
+    SELECT quality.qid, quality.score, quality.reason
+    FROM quality
+    WHERE quality.qid NOT IN (SELECT collaborative.id FROM collaborative)
   )
   SELECT m.id, m.score, m.reason
   FROM merged m
