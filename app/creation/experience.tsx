@@ -16,7 +16,7 @@ export function Experience({
   startIndex: number;
   onExit: () => void;
 }) {
-  const { items, maybePrefetch, markSeen } = useFeed();
+  const { items, loading, error, exhausted, maybePrefetch, markSeen } = useFeed();
   const [idx, setIdx] = useState(startIndex);
   const [frameBlocked, setFrameBlocked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
@@ -96,9 +96,31 @@ export function Experience({
   });
 
   if (!current) {
+    // Distinguish "still fetching" from "fetched, nothing to show" so we never
+    // hang on "Loading…" when the feed is legitimately empty.
+    const stillLoading = loading && !exhausted && !error;
     return (
-      <div className="flex h-full w-full items-center justify-center bg-background font-sans text-[10px] text-muted-foreground">
-        Loading…
+      <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-background p-3 text-center font-sans text-foreground">
+        {stillLoading ? (
+          <p className="text-[10px] text-muted-foreground">Loading…</p>
+        ) : (
+          <>
+            <p className="text-xs font-semibold">
+              {error ? "Couldn't load creations" : "No creations yet"}
+            </p>
+            <p className="px-3 text-[9px] leading-snug text-muted-foreground">
+              {error
+                ? "Check your connection and try again."
+                : "Come back soon — new creations are added all the time."}
+            </p>
+            <button
+              onClick={onExit}
+              className="mt-1 rounded bg-muted px-3 py-1 text-[10px] text-foreground active:scale-95"
+            >
+              Back
+            </button>
+          </>
+        )}
       </div>
     );
   }

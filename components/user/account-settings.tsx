@@ -474,8 +474,8 @@ function StoreLinkSection() {
         <div>
           <h3 className="font-semibold">Browse on R1</h3>
           <p className="text-xs text-muted-foreground">
-            Link an R1 so the Creations store (<code>/creation</code>) signs in as you —
-            bookmarks you save there appear under Saved.
+            Link an R1 so the Creations store signs in as you — bookmarks you
+            save there appear under Saved.
           </p>
         </div>
       </div>

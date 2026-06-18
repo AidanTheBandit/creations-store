@@ -104,7 +104,9 @@ BEGIN
   IF NOT v_has_likes THEN
     -- Cold start: global quality, excluding already-seen.
     RETURN QUERY
-      SELECT q.id, q.qscore AS score, 'quality_fallback'::text
+      -- qscore is double precision (exp/ln in the view); the function returns
+      -- numeric, so cast or Postgres raises "structure of query does not match".
+      SELECT q.id, q.qscore::numeric AS score, 'quality_fallback'::text
       FROM creation_quality_scores q
       WHERE NOT EXISTS (
         SELECT 1 FROM store_feed_seen s
