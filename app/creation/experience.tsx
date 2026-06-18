@@ -2,28 +2,31 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAuthHeaders } from "@/lib/creation/device-id";
-import { useFeed, useDeviceControls } from "./use-feed";
+import { useFeed, useDeviceControls, type FeedItem } from "./use-feed";
 
-// Experience mode: full-canvas iframe of the focused creation. Scroll wheel
-// advances/rewinds (TikTok-style), side button bookmarks. If a site refuses to
-// be framed, we fall back to its screenshot + title.
+// Experience mode: a full-screen, TikTok-style vertical feed of creations.
+// The focused creation runs live in an iframe; swipe/scroll slides to the next
+// one with an animation. A cross-origin iframe swallows wheel/touch, so a
+// gesture overlay sits on top to own navigation until the user taps "Use this"
+// to interact with the creation itself.
 export function Experience({
   linked,
   startIndex,
   onExit,
+  onLogout,
 }: {
   linked: boolean;
   startIndex: number;
   onExit: () => void;
+  onLogout: () => void;
 }) {
   const { items, loading, error, exhausted, maybePrefetch, markSeen } = useFeed();
   const [idx, setIdx] = useState(startIndex);
   const [frameBlocked, setFrameBlocked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  // When interacting, the gesture overlay lifts so taps/scroll reach the iframe.
-  // Otherwise the overlay owns navigation — a cross-origin iframe swallows wheel
-  // and touch events, so they can never bubble to our scroll-wheel handler.
+  // While interacting, the gesture overlay lifts so taps/scroll reach the
+  // iframe. Otherwise the overlay owns swipe/scroll navigation.
   const [interacting, setInteracting] = useState(false);
   const loadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const iframeLoaded = useRef(false);
@@ -101,7 +104,7 @@ export function Experience({
   );
 
   // R1 scroll-wheel + side-button. While "interacting" we hand control to the
-  // iframe, so navigation is paused until the user taps the chrome to resume.
+  // iframe, so navigation is paused until the user taps back out.
   useDeviceControls({
     onScroll: navigate,
     onSide: bookmark,
@@ -118,7 +121,9 @@ export function Experience({
       touchStartY.current = null;
       if (start == null) return;
       const dy = (e.changedTouches[0]?.clientY ?? start) - start;
-      if (Math.abs(dy) < 30) return; // ignore taps / tiny drags
+      // Friction: require a deliberate swipe (~1/5 of the screen) before
+      // advancing, so small drags don't skip creations.
+      if (Math.abs(dy) < 56) return;
       navigate(dy < 0 ? "down" : "up");
     },
     [navigate],
@@ -128,7 +133,7 @@ export function Experience({
   const onWheel = useCallback(
     (e: React.WheelEvent) => {
       const now = e.timeStamp;
-      if (now - lastWheel.current < 300) return;
+      if (now - lastWheel.current < 450) return; // friction: one move per flick
       lastWheel.current = now;
       navigate(e.deltaY > 0 ? "down" : "up");
     },
@@ -165,85 +170,145 @@ export function Experience({
     );
   }
 
+  // Render a 3-slide window (prev / current / next) on a rail that translates
+  // to center the current slide. Only the focused creation gets a live iframe;
+  // neighbors show a lightweight poster so the slide animation stays cheap.
+  const window: { item: FeedItem; pos: number }[] = [];
+  for (let d = -1; d <= 1; d++) {
+    const j = idx + d;
+    if (j >= 0 && j < items.length) window.push({ item: items[j], pos: d });
+  }
+
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden bg-black font-sans">
-      {/* Stage: the iframe is inset (not full-bleed) so the device frame and
-          chrome read as a "card" and the gesture gutters stay reachable. */}
-      <div className="relative min-h-0 flex-1 px-2 pt-2">
-        <div className="relative h-full w-full overflow-hidden rounded-lg border border-white/10 bg-white">
-          {frameBlocked ? (
-            // Graceful fallback — can't embed this creation.
-            <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-background p-3 text-center text-foreground">
-              {current.screenshotUrl || current.iconUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={current.screenshotUrl || current.iconUrl || ""}
-                  alt=""
-                  className="max-h-[55%] w-auto rounded-md border border-border object-contain"
-                />
-              ) : null}
-              <p className="text-xs font-semibold">{current.title}</p>
-              <p className="px-3 text-[9px] leading-snug text-muted-foreground">
-                This creation can&apos;t be previewed here. Save it to install later.
-              </p>
-            </div>
-          ) : (
-            <iframe
-              key={current.id}
-              src={current.url}
-              title={current.title}
-              className="h-full w-full border-0 bg-white"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-              onLoad={() => {
-                iframeLoaded.current = true;
-              }}
-            />
-          )}
-
-          {/* Gesture overlay. A cross-origin iframe captures all wheel/touch
-              events, so while navigating we sit ON TOP of it to own swipe +
-              scroll. Tapping hands control to the creation (overlay lifts);
-              the small "Interacting" pill taps back to navigation. */}
-          {!frameBlocked && !interacting && (
-            <div
-              className="absolute inset-0 z-10"
-              onTouchStart={onTouchStart}
-              onTouchEnd={onTouchEnd}
-              onWheel={onWheel}
-              onClick={() => setInteracting(true)}
-            />
-          )}
-        </div>
-
-        {!frameBlocked && interacting && (
-          <button
-            onClick={() => setInteracting(false)}
-            className="absolute right-3 top-3 z-20 rounded-full bg-black/70 px-2 py-0.5 text-[9px] font-medium text-white active:scale-95"
+    <div className="relative h-full w-full overflow-hidden bg-black font-sans">
+      {/* Vertical rail: each slide is full-screen; we translate by -idx so the
+          focused slide is centered, animating on navigate (TikTok-style). */}
+      {window.map(({ item, pos }) => {
+        const isCurrent = pos === 0;
+        return (
+          <div
+            key={item.id}
+            className="absolute inset-0 will-change-transform"
+            style={{
+              transform: `translateY(${pos * 100}%)`,
+              transition: "transform 260ms cubic-bezier(0.22,1,0.36,1)",
+            }}
           >
-            Done
+            {isCurrent && !frameBlocked ? (
+              <iframe
+                key={item.id}
+                src={item.url}
+                title={item.title}
+                className="h-full w-full border-0 bg-white"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                onLoad={() => {
+                  iframeLoaded.current = true;
+                }}
+              />
+            ) : (
+              // Poster for neighbors (and the frame-blocked fallback): the
+              // creation can't run here, so show its art + title.
+              <Poster item={item} blocked={isCurrent && frameBlocked} />
+            )}
+          </div>
+        );
+      })}
+
+      {/* Gesture overlay — owns swipe/scroll while navigating. Tapping "Use
+          this" lifts it so the creation receives input. */}
+      {!interacting && (
+        <div
+          className="absolute inset-0 z-10"
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+          onWheel={onWheel}
+        />
+      )}
+
+      {/* Top-right controls: interact toggle + logout. Always above the rail. */}
+      <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5">
+        {!frameBlocked &&
+          (interacting ? (
+            <button
+              onClick={() => setInteracting(false)}
+              className="rounded-full bg-primary px-2.5 py-1 text-[9px] font-semibold text-primary-foreground active:scale-95"
+            >
+              ✓ Done
+            </button>
+          ) : (
+            <button
+              onClick={() => setInteracting(true)}
+              className="rounded-full bg-white/85 px-2.5 py-1 text-[9px] font-semibold text-black active:scale-95"
+            >
+              Use this
+            </button>
+          ))}
+        {linked && (
+          <button
+            onClick={async () => {
+              try {
+                await fetch("/api/unlink-r1", { method: "POST" });
+              } catch {
+                /* best effort */
+              }
+              onLogout();
+            }}
+            className="rounded-full bg-black/60 px-2 py-1 text-[9px] font-medium text-white active:scale-95"
+          >
+            Log out
           </button>
         )}
       </div>
 
-      {/* Bottom chrome: title + save state. Outside the iframe inset so it's
-          always tappable. */}
-      <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-1.5">
-        <span className="truncate text-[10px] font-semibold text-white">
-          {current.title}
-        </span>
+      {/* Bottom chrome: title + save. Sits above the overlay so it stays tappable. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-2 bg-gradient-to-t from-black/70 to-transparent px-2 pb-1.5 pt-5">
+        <div className="min-w-0">
+          <p className="truncate text-[10px] font-semibold text-white">
+            {current.title}
+          </p>
+          <p className="truncate text-[8px] text-white/70">
+            {current.author || current.category?.name || "Creation"}
+            {!interacting && " · swipe to browse"}
+          </p>
+        </div>
         <button
           onClick={bookmark}
-          className="ml-2 shrink-0 text-[10px] active:scale-95"
-          style={{ color: bookmarked ? "#fe5000" : "rgba(255,255,255,0.7)" }}
+          className="pointer-events-auto ml-2 shrink-0 text-[11px] active:scale-95"
+          style={{ color: bookmarked ? "#fe5000" : "rgba(255,255,255,0.85)" }}
         >
-          {bookmarked ? "★ Saved" : "☆ Save"}
+          {bookmarked ? "★" : "☆"}
         </button>
       </div>
 
       {toast && (
-        <div className="absolute left-1/2 top-2 -translate-x-1/2 rounded bg-black/80 px-2 py-1 text-[10px] text-white">
+        <div className="absolute left-1/2 top-2 z-30 -translate-x-1/2 rounded bg-black/80 px-2 py-1 text-[10px] text-white">
           {toast}
         </div>
+      )}
+    </div>
+  );
+}
+
+// Lightweight slide poster for neighbors and the frame-blocked fallback.
+function Poster({ item, blocked }: { item: FeedItem; blocked: boolean }) {
+  return (
+    <div
+      className="flex h-full w-full flex-col items-center justify-center gap-2 p-3 text-center text-foreground"
+      style={{ background: item.themeColor ? `${item.themeColor}22` : "hsl(var(--background))" }}
+    >
+      {item.screenshotUrl || item.iconUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={item.screenshotUrl || item.iconUrl || ""}
+          alt=""
+          className="max-h-[55%] w-auto rounded-md border border-border object-contain"
+        />
+      ) : null}
+      <p className="text-xs font-semibold">{item.title}</p>
+      {blocked && (
+        <p className="px-3 text-[9px] leading-snug text-muted-foreground">
+          This creation can&apos;t be previewed here. Save it to install later.
+        </p>
       )}
     </div>
   );

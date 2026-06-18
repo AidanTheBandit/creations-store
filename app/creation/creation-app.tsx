@@ -154,6 +154,13 @@ export function CreationApp() {
     setMode("experience");
   }, []);
   const backToList = useCallback(() => setMode("list"), []);
+  // Logout from the device client: the cookie was already cleared server-side
+  // by /api/unlink-r1; drop to the unlinked screen.
+  const handleLogout = useCallback(() => {
+    setMode("experience");
+    setStartIndex(0);
+    setState({ kind: "unlinked" });
+  }, []);
 
   // ─── Render ───────────────────────────────────────────────
   if (state.kind === "booting") {
@@ -240,7 +247,12 @@ export function CreationApp() {
       onOpen={openExperience}
     />
   ) : (
-    <Experience linked={linked} startIndex={startIndex} onExit={backToList} />
+    <Experience
+      linked={linked}
+      startIndex={startIndex}
+      onExit={backToList}
+      onLogout={handleLogout}
+    />
   );
 }
 

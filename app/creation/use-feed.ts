@@ -109,7 +109,10 @@ export function useDeviceControls(handlers: {
     const scroll = (data: { direction: "up" | "down" }) => {
       if (disposed) return;
       const now = performance.now();
-      if (now - lastScroll < 140) return; // R1 fires 2-3 events per gesture
+      // Friction: the R1 wheel fires a burst per detent, and one flick can emit
+      // many. A larger window means one gesture = one move, so the feed doesn't
+      // skip several creations at once.
+      if (now - lastScroll < 320) return;
       lastScroll = now;
       ref.current.onScroll(data.direction);
     };
