@@ -311,55 +311,89 @@ function AccountScreen({
   onLink: () => void;
 }) {
   return (
-    <div className="relative flex h-full w-full flex-col bg-background font-sans text-foreground">
-      <div className="flex h-8 shrink-0 items-center justify-between px-3">
-        <button
-          onClick={onBack}
-          className="text-[10px] text-muted-foreground active:scale-95"
-        >
-          ← Back
-        </button>
-        <span className="text-xs font-bold text-primary">Account</span>
-        <span className="w-8" />
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-background font-sans text-white">
+      {/* Blurred avatar backdrop — same treatment as rhythm's profile. */}
+      <div className="absolute inset-0 overflow-hidden">
+        {user?.avatar_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={user.avatar_url}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{ filter: "blur(18px) saturate(1.2)", transform: "scale(1.2)" }}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-[#FF1F8F]/30 via-[#A864FF]/30 to-[#1F4A3F]/30" />
+        )}
+        <div className="absolute inset-0 bg-black/65" />
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-        {user ? (
-          <>
-            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border bg-muted text-base font-bold">
-              {user.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
-              ) : (
-                (user.username?.[0] || "?").toUpperCase()
-              )}
-            </div>
-            <div>
-              <p className="text-xs font-semibold">@{user.username}</p>
-              <p className="text-[9px] text-muted-foreground">Linked to this R1</p>
-            </div>
-            <button
-              onClick={onLogout}
-              disabled={loggingOut}
-              className="mt-1 rounded bg-destructive px-4 py-1.5 text-[11px] font-semibold text-destructive-foreground active:scale-95 disabled:opacity-60"
-            >
-              {loggingOut ? "Logging out…" : "Log out"}
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="text-xs font-semibold">Browsing as guest</p>
-            <p className="px-3 text-[9px] leading-snug text-muted-foreground">
-              Link your Boondit account to save creations across devices.
-            </p>
-            <button
-              onClick={onLink}
-              className="mt-1 rounded bg-primary px-4 py-1.5 text-[11px] font-semibold text-primary-foreground active:scale-95"
-            >
-              Link account
-            </button>
-          </>
-        )}
+      <div className="relative flex h-full w-full flex-col">
+        <div className="flex h-[3px] w-full shrink-0">
+          <div className="flex-1" style={{ background: "#FF1F8F" }} />
+          <div className="flex-1" style={{ background: "#A864FF" }} />
+          <div className="flex-1" style={{ background: "#1F4A3F" }} />
+        </div>
+
+        <div className="flex h-6 shrink-0 items-center justify-between px-2">
+          <button
+            onClick={onBack}
+            className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] active:scale-95"
+          >
+            ← Back
+          </button>
+          <span className="text-[10px] font-bold tracking-tight">Account</span>
+          <span className="w-9" />
+        </div>
+
+        <div className="flex flex-1 flex-col items-center px-3 pb-2 pt-2 text-center">
+          {/* Avatar */}
+          <div className="relative mb-1.5 h-[72px] w-[72px] overflow-hidden rounded-md border border-white/15 bg-black/40">
+            {user?.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-[26px] font-bold text-white/30">
+                {(user?.username?.[0] || "?").toUpperCase()}
+              </div>
+            )}
+          </div>
+
+          {user ? (
+            <>
+              <p className="truncate text-[12px] font-bold">@{user.username}</p>
+              <p className="text-[8px] uppercase tracking-wide text-white/50">
+                Linked to this R1
+              </p>
+              <button
+                onClick={onLogout}
+                disabled={loggingOut}
+                className="mt-3 rounded bg-red-500/90 px-4 py-1.5 text-[11px] font-semibold text-white active:scale-95 disabled:opacity-60"
+              >
+                {loggingOut ? "Logging out…" : "Log out"}
+              </button>
+              <p className="mt-auto text-[8px] text-white/50">
+                Manage your profile on the web.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-[12px] font-bold">Guest</p>
+              <p className="mt-1 px-2 text-center text-[8px] leading-tight text-white/70">
+                Link your Boondit account to save creations across devices.
+              </p>
+              <button
+                onClick={onLink}
+                className="mt-3 rounded bg-primary px-4 py-1.5 text-[11px] font-semibold text-primary-foreground active:scale-95"
+              >
+                Link account
+              </button>
+              <p className="mt-auto text-[8px] text-white/50">
+                Sign up on the main site first.
+              </p>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

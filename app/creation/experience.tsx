@@ -62,26 +62,32 @@ export function Experience({
     setTimeout(() => setToast(null), 1400);
   }, []);
 
+  // Toggle: POST adds, DELETE removes. Optimistic, reverts on failure.
   const bookmark = useCallback(async () => {
     if (!current) return;
     if (!linked) {
       showToast("Link your account to save");
       return;
     }
-    setBookmarked(true); // optimistic
+    const next = !bookmarked;
+    setBookmarked(next); // optimistic
     try {
       const res = await fetch("/api/creation/bookmark", {
-        method: "POST",
+        method: next ? "POST" : "DELETE",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({ creationId: current.id }),
       });
-      showToast(res.ok ? "Saved ✓" : "Couldn't save");
-      if (!res.ok) setBookmarked(false);
+      if (!res.ok) {
+        setBookmarked(!next);
+        showToast("Couldn't update");
+      } else {
+        showToast(next ? "Saved ✓" : "Removed");
+      }
     } catch {
-      setBookmarked(false);
-      showToast("Couldn't save");
+      setBookmarked(!next);
+      showToast("Couldn't update");
     }
-  }, [current, linked, showToast]);
+  }, [current, linked, bookmarked, showToast]);
 
   // Single source of truth for advancing/rewinding the feed.
   const navigate = useCallback(
@@ -137,6 +143,29 @@ export function Experience({
     },
     [navigate],
   );
+
+  // STABLE blocked/loaded callbacks. These MUST NOT be recreated per render:
+  // Slide's load-detection effect depends on them, so an inline arrow would
+  // re-run that effect on every Experience re-render (toast, interacting, …),
+  // restart the 3s timer against an already-loaded iframe that never fires
+  // onLoad again, and falsely mark it blocked — making "Use this" vanish if you
+  // sit on a slide. A loaded slide also clears any earlier blocked flag.
+  const markBlocked = useCallback((id: string) => {
+    setBlockedIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+  const markLoaded = useCallback((id: string) => {
+    setBlockedIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
 
   if (!current) {
     // Distinguish "still fetching" from "fetched, nothing to show" so we never
@@ -212,14 +241,8 @@ export function Experience({
             item={item}
             // Only the current slide is reachable; neighbors preload muted.
             active={pos === 0}
-            onBlocked={() =>
-              setBlockedIds((prev) => {
-                if (prev.has(item.id)) return prev;
-                const next = new Set(prev);
-                next.add(item.id);
-                return next;
-              })
-            }
+            onBlocked={markBlocked}
+            onLoaded={markLoaded}
           />
         </div>
       ))}
@@ -298,24 +321,32 @@ function Slide({
   item,
   active,
   onBlocked,
+  onLoaded,
 }: {
   item: FeedItem;
   active: boolean;
-  onBlocked: () => void;
+  onBlocked: (id: string) => void;
+  onLoaded: (id: string) => void;
 }) {
   const [blocked, setBlocked] = useState(false);
   const loaded = useRef(false);
 
+  // Re-arm ONLY when the slide shows a different creation. onBlocked/onLoaded
+  // are stable (useCallback in the parent), so a parent re-render won't restart
+  // this timer against an already-loaded iframe — which would falsely mark a
+  // sitting slide as blocked and hide its "Use this" button.
   useEffect(() => {
     loaded.current = false;
     setBlocked(false);
-    // If the iframe hasn't fired `load` within 6s, treat it as frame-blocked.
+    // Frame-block fallback. A framed site fires `load` within a second or two;
+    // an X-Frame-Options/CSP refusal shows the browser's "can't connect" page.
+    // Keep this short so the poster replaces that error page quickly.
     const t = setTimeout(() => {
       if (!loaded.current) {
         setBlocked(true);
-        onBlocked();
+        onBlocked(item.id);
       }
-    }, 6000);
+    }, 3000);
     return () => clearTimeout(t);
   }, [item.id, onBlocked]);
 
@@ -326,11 +357,17 @@ function Slide({
       src={item.url}
       title={item.title}
       className="h-full w-full border-0 bg-white"
-      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
+      // Delegate device permissions so creations that need camera/mic (QR
+      // scanners, AR, voice) can request them inside the frame.
+      allow="camera; microphone; autoplay; clipboard-read; clipboard-write; fullscreen; accelerometer; gyroscope"
       // Off-screen neighbors load but can't be interacted with or tab-focused.
       tabIndex={active ? undefined : -1}
       onLoad={() => {
         loaded.current = true;
+        // A late load (after the 3s timer fired) clears the blocked flag so the
+        // poster yields back to the live frame and "Use this" returns.
+        onLoaded(item.id);
       }}
     />
   );

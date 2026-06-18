@@ -105,8 +105,12 @@ const creationHeaders = [
   ...baseHeaders,
   { key: "Content-Security-Policy", value: CREATION_CSP },
   {
+    // experience mode embeds arbitrary creations that may need the camera/mic
+    // (QR scanners, AR, voice). Delegate to all origins (camera=*) so the
+    // iframe's own allow="camera; microphone" can grant them; the page itself
+    // (QR pairing scanner) is included via *.
     key: "Permissions-Policy",
-    value: "camera=(self), microphone=(), geolocation=()",
+    value: "camera=*, microphone=*, geolocation=()",
   },
 ];
 
