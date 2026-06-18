@@ -22,14 +22,14 @@ export function Experience({
 }) {
   const { items, loading, error, exhausted, maybePrefetch, markSeen } = useFeed();
   const [idx, setIdx] = useState(startIndex);
-  const [frameBlocked, setFrameBlocked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   // While interacting, the gesture overlay lifts so taps/scroll reach the
   // iframe. Otherwise the overlay owns swipe/scroll navigation.
   const [interacting, setInteracting] = useState(false);
-  const loadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const iframeLoaded = useRef(false);
+  // Creations that refused to be framed (X-Frame-Options/CSP) — tracked by id
+  // so a blocked slide shows its poster fallback even after preloading.
+  const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
   const touchStartY = useRef<number | null>(null);
 
   const current = items[idx];
@@ -39,13 +39,12 @@ export function Experience({
     if (items.length > 0) setIdx((i) => Math.max(0, Math.min(items.length - 1, i)));
   }, [items.length]);
 
-  // On each creation change: reset frame state, mark seen, prefetch, reset bookmark.
+  // On each creation change: mark seen, prefetch, record view, reset per-item UI.
+  // (Frame-blocked detection now lives per-Slide so neighbors can preload.)
   useEffect(() => {
     if (!current) return;
-    setFrameBlocked(false);
     setBookmarked(false);
     setInteracting(false); // every new creation starts in navigation mode
-    iframeLoaded.current = false;
     markSeen([current.id]);
     maybePrefetch(idx);
 
@@ -56,15 +55,6 @@ export function Experience({
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify({ creationId: current.id }),
     }).catch(() => {});
-
-    // If the iframe hasn't fired `load` within 4s, assume it's blocked.
-    if (loadTimer.current) clearTimeout(loadTimer.current);
-    loadTimer.current = setTimeout(() => {
-      if (!iframeLoaded.current) setFrameBlocked(true);
-    }, 4000);
-    return () => {
-      if (loadTimer.current) clearTimeout(loadTimer.current);
-    };
   }, [current, idx, markSeen, maybePrefetch]);
 
   const showToast = useCallback((msg: string) => {
@@ -189,48 +179,50 @@ export function Experience({
   }
 
   // Render a 3-slide window (prev / current / next) on a rail that translates
-  // to center the current slide. Only the focused creation gets a live iframe;
-  // neighbors show a lightweight poster so the slide animation stays cheap.
-  const window: { item: FeedItem; pos: number }[] = [];
+  // to center the current slide. ALL THREE get a live iframe so neighbors are
+  // already loaded when you swipe — only the current one is interactive; the
+  // off-screen ones preload silently (pointer-events disabled).
+  const slideWindow: { item: FeedItem; pos: number }[] = [];
   for (let d = -1; d <= 1; d++) {
     const j = idx + d;
-    if (j >= 0 && j < items.length) window.push({ item: items[j], pos: d });
+    if (j >= 0 && j < items.length) slideWindow.push({ item: items[j], pos: d });
   }
+
+  const currentBlocked = blockedIds.has(current.id);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black font-sans">
-      {/* Vertical rail: each slide is full-screen; we translate by -idx so the
-          focused slide is centered, animating on navigate (TikTok-style). */}
-      {window.map(({ item, pos }) => {
-        const isCurrent = pos === 0;
-        return (
-          <div
-            key={item.id}
-            className="absolute inset-0 will-change-transform"
-            style={{
-              transform: `translateY(${pos * 100}%)`,
-              transition: "transform 260ms cubic-bezier(0.22,1,0.36,1)",
-            }}
-          >
-            {isCurrent && !frameBlocked ? (
-              <iframe
-                key={item.id}
-                src={item.url}
-                title={item.title}
-                className="h-full w-full border-0 bg-white"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                onLoad={() => {
-                  iframeLoaded.current = true;
-                }}
-              />
-            ) : (
-              // Poster for neighbors (and the frame-blocked fallback): the
-              // creation can't run here, so show its art + title.
-              <Poster item={item} blocked={isCurrent && frameBlocked} />
-            )}
-          </div>
-        );
-      })}
+      {/* Vertical rail: each slide is full-screen; we translate by pos*100% so
+          the focused slide is centered, animating on navigate (TikTok-style).
+          Keyed by item.id so React keeps neighbor iframes mounted (loaded)
+          across swipes. */}
+      {slideWindow.map(({ item, pos }) => (
+        <div
+          key={item.id}
+          className="absolute inset-0 will-change-transform"
+          style={{
+            transform: `translateY(${pos * 100}%)`,
+            transition: "transform 260ms cubic-bezier(0.22,1,0.36,1)",
+            // Off-screen slides must not eat input meant for the focused one.
+            pointerEvents: pos === 0 ? undefined : "none",
+          }}
+          aria-hidden={pos !== 0}
+        >
+          <Slide
+            item={item}
+            // Only the current slide is reachable; neighbors preload muted.
+            active={pos === 0}
+            onBlocked={() =>
+              setBlockedIds((prev) => {
+                if (prev.has(item.id)) return prev;
+                const next = new Set(prev);
+                next.add(item.id);
+                return next;
+              })
+            }
+          />
+        </div>
+      ))}
 
       {/* Gesture overlay — owns swipe/scroll while navigating. Tapping "Use
           this" lifts it so the creation receives input. */}
@@ -245,7 +237,7 @@ export function Experience({
 
       {/* Top-right controls: interact toggle + account. Always above the rail. */}
       <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5">
-        {!frameBlocked &&
+        {!currentBlocked &&
           (interacting ? (
             <button
               onClick={() => setInteracting(false)}
@@ -296,6 +288,51 @@ export function Experience({
         </div>
       )}
     </div>
+  );
+}
+
+// One feed slide: a live iframe (kept mounted across swipes so prev/next
+// preload), with a poster fallback if the site refuses to be framed. Manages
+// its own load timer so each slide detects blocking independently.
+function Slide({
+  item,
+  active,
+  onBlocked,
+}: {
+  item: FeedItem;
+  active: boolean;
+  onBlocked: () => void;
+}) {
+  const [blocked, setBlocked] = useState(false);
+  const loaded = useRef(false);
+
+  useEffect(() => {
+    loaded.current = false;
+    setBlocked(false);
+    // If the iframe hasn't fired `load` within 6s, treat it as frame-blocked.
+    const t = setTimeout(() => {
+      if (!loaded.current) {
+        setBlocked(true);
+        onBlocked();
+      }
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [item.id, onBlocked]);
+
+  if (blocked) return <Poster item={item} blocked />;
+
+  return (
+    <iframe
+      src={item.url}
+      title={item.title}
+      className="h-full w-full border-0 bg-white"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      // Off-screen neighbors load but can't be interacted with or tab-focused.
+      tabIndex={active ? undefined : -1}
+      onLoad={() => {
+        loaded.current = true;
+      }}
+    />
   );
 }
 
