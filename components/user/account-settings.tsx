@@ -174,10 +174,8 @@ export function AccountSettings({ user }: { user: CurrentUser }) {
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
     { id: "connected", label: "Connected", icon: Link2 },
-    { id: "r1a", label: "R1A Device", icon: Smartphone },
-    { id: "keys", label: "API Keys", icon: Key },
-    { id: "store-api", label: "Store API", icon: Code },
-    { id: "docs", label: "API Docs", icon: Code },
+    { id: "devices", label: "Devices", icon: Smartphone },
+    { id: "developer", label: "Developer", icon: Code },
     { id: "account", label: "Account", icon: Settings },
   ];
 
@@ -358,12 +356,22 @@ export function AccountSettings({ user }: { user: CurrentUser }) {
             </div>
           )}
 
-          {/* ─── R1A Sections ─────────────────────────────────────── */}
-          {activeTab === "r1a" && <R1ADeviceSection userId={user.id} />}
-          {activeTab === "keys" && <ApiKeysSection />}
-          {activeTab === "store-api" && <StoreApiSection />}
-          {activeTab === "docs" && <ApiDocsSection />}
-          {/* ─── End R1A Sections ─────────────────────────────────── */}
+          {/* ─── Devices: R1A assistant + browse-on-R1 store link ─── */}
+          {activeTab === "devices" && (
+            <div className="space-y-6">
+              <R1ADeviceSection userId={user.id} />
+              <StoreLinkSection />
+            </div>
+          )}
+
+          {/* ─── Developer: API keys, store API, and docs ─────────── */}
+          {activeTab === "developer" && (
+            <div className="space-y-6">
+              <ApiKeysSection />
+              <StoreApiSection />
+              <ApiDocsSection />
+            </div>
+          )}
 
           {/* Account details */}
           {activeTab === "account" && (
@@ -404,6 +412,100 @@ export function AccountSettings({ user }: { user: CurrentUser }) {
           Sign Out
         </Button>
       </form>
+    </div>
+  );
+}
+
+// ─── Store device-link section (link an R1 to browse /creation) ───
+// Mints a store link token and renders the QR the /creation client scans.
+// Independent of R1A pairing and of rhythm's device link.
+
+function StoreLinkSection() {
+  const [token, setToken] = useState<string | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const origin =
+    typeof window !== "undefined" ? window.location.origin : "https://creations.boondit.site";
+
+  const generate = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/link-token", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Failed to create link token");
+        return;
+      }
+      setToken(data.token);
+      setSecondsLeft(Math.max(0, Math.floor((new Date(data.expires_at).getTime() - Date.now()) / 1000)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Countdown; clear the QR when the token expires.
+  useEffect(() => {
+    if (!token || secondsLeft <= 0) return;
+    const id = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          setToken(null);
+          clearInterval(id);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [token, secondsLeft]);
+
+  const qrValue =
+    token && JSON.stringify({ v: 1, token, endpoint: "/api/link-r1" });
+
+  return (
+    <div className="rounded-xl border bg-card p-6 space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <QrCode className="h-5 w-5" />
+        </div>
+        <div>
+          <h3 className="font-semibold">Browse on R1</h3>
+          <p className="text-xs text-muted-foreground">
+            Link an R1 so the Creations store (<code>/creation</code>) signs in as you —
+            bookmarks you save there appear under Saved.
+          </p>
+        </div>
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {qrValue ? (
+        <div className="flex flex-col items-center gap-3">
+          <div className="rounded-lg bg-white p-3">
+            <QRCodeSVG value={qrValue} size={220} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Open the store on your R1, tap “Link”, and scan this. Expires in{" "}
+            {Math.floor(secondsLeft / 60)}:{(secondsLeft % 60).toString().padStart(2, "0")}.
+          </p>
+          <p className="text-[10px] text-muted-foreground">
+            R1 not handy? Open{" "}
+            <code className="font-mono">{origin.replace(/^https?:\/\//, "")}/creation</code>
+          </p>
+        </div>
+      ) : (
+        <Button size="sm" onClick={generate} disabled={loading}>
+          {loading ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <QrCode className="h-4 w-4 mr-2" />
+          )}
+          Generate link QR
+        </Button>
+      )}
     </div>
   );
 }
@@ -1448,37 +1550,117 @@ function ApiKeysSection() {
 
 // ─── API Documentation Section ────────────────────────────────────
 
-const ENDPOINTS = [
+type Endpoint = {
+  method: string;
+  path: string;
+  description: string;
+  curl: string;
+};
+
+type EndpointGroup = {
+  title: string;
+  blurb: string;
+  endpoints: Endpoint[];
+};
+
+// Public, documented surface. Two distinct APIs with separate credentials:
+//  • Store API — Bearer boondit_sk_… keys (made in the Developer tab), read by
+//    default, write scope optional. CRUD over your own creations + catalog reads.
+//  • R1A API — Bearer boondit_r1_… keys; routes requests to your own R1 device.
+const ENDPOINT_GROUPS: EndpointGroup[] = [
   {
-    method: "POST",
-    path: "/api/r1a/v1/chat/completions",
-    description: "Chat with your R1 (OpenAI-compatible)",
-    curl: `curl ${API_BASE_URL}/api/r1a/v1/chat/completions \\
+    title: "Store API",
+    blurb:
+      "Catalog + your creations. Authenticate with a Store key (boondit_sk_…) from the Developer tab. Reads need the read scope; create/update/delete need write. Responses are JSON: { data, pagination } for lists.",
+    endpoints: [
+      {
+        method: "GET",
+        path: "/api/v1/creations",
+        description:
+          "List published creations. Query: limit (1–100, default 20), offset, category (slug), q (title search).",
+        curl: `curl "${API_BASE_URL}/api/v1/creations?limit=20&q=timer" \\
+  -H "Authorization: Bearer boondit_sk_..."`,
+      },
+      {
+        method: "GET",
+        path: "/api/v1/creations/{idOrSlug}",
+        description: "Fetch a single creation by id or slug.",
+        curl: `curl ${API_BASE_URL}/api/v1/creations/my-cool-app \\
+  -H "Authorization: Bearer boondit_sk_..."`,
+      },
+      {
+        method: "POST",
+        path: "/api/v1/creations",
+        description:
+          "Create a creation (write scope). Body: title*, url*, description?, overview?, iconUrl? (Boondit CDN), ogImage?, themeColor? (#rrggbb), author?, screenshotUrl?, categoryId?, status? (draft|published, default draft).",
+        curl: `curl -X POST ${API_BASE_URL}/api/v1/creations \\
+  -H "Authorization: Bearer boondit_sk_..." \\
+  -H "Content-Type: application/json" \\
+  -d '{"title":"My App","url":"https://example.com","status":"published"}'`,
+      },
+      {
+        method: "PATCH",
+        path: "/api/v1/creations/{idOrSlug}",
+        description:
+          "Update a creation you own (write scope). Send only the fields you want to change.",
+        curl: `curl -X PATCH ${API_BASE_URL}/api/v1/creations/my-cool-app \\
+  -H "Authorization: Bearer boondit_sk_..." \\
+  -H "Content-Type: application/json" \\
+  -d '{"description":"Updated copy"}'`,
+      },
+      {
+        method: "DELETE",
+        path: "/api/v1/creations/{idOrSlug}",
+        description: "Delete a creation you own (write scope).",
+        curl: `curl -X DELETE ${API_BASE_URL}/api/v1/creations/my-cool-app \\
+  -H "Authorization: Bearer boondit_sk_..."`,
+      },
+      {
+        method: "GET",
+        path: "/api/v1/categories",
+        description: "List all catalog categories.",
+        curl: `curl ${API_BASE_URL}/api/v1/categories \\
+  -H "Authorization: Bearer boondit_sk_..."`,
+      },
+    ],
+  },
+  {
+    title: "R1A API (your R1 as a model)",
+    blurb:
+      "OpenAI-compatible endpoints that route to your linked R1. Authenticate with an R1A key (boondit_r1_…) from the Devices tab.",
+    endpoints: [
+      {
+        method: "POST",
+        path: "/api/r1a/v1/chat/completions",
+        description: "Chat with your R1 (OpenAI-compatible).",
+        curl: `curl ${API_BASE_URL}/api/r1a/v1/chat/completions \\
   -H "Authorization: Bearer boondit_r1_..." \\
   -H "Content-Type: application/json" \\
   -d '{"model":"r1-command","messages":[{"role":"user","content":"Hello"}]}'`,
-  },
-  {
-    method: "GET",
-    path: "/api/r1a/v1/models",
-    description: "List available models",
-    curl: `curl ${API_BASE_URL}/api/r1a/v1/models \\
+      },
+      {
+        method: "GET",
+        path: "/api/r1a/v1/models",
+        description: "List available models.",
+        curl: `curl ${API_BASE_URL}/api/r1a/v1/models \\
   -H "Authorization: Bearer boondit_r1_..."`,
-  },
-  {
-    method: "POST",
-    path: "/api/r1a/v1/audio/speech",
-    description: "Text to speech via your R1",
-    curl: `curl ${API_BASE_URL}/api/r1a/v1/audio/speech \\
+      },
+      {
+        method: "POST",
+        path: "/api/r1a/v1/audio/speech",
+        description: "Text to speech via your R1.",
+        curl: `curl ${API_BASE_URL}/api/r1a/v1/audio/speech \\
   -H "Authorization: Bearer boondit_r1_..." \\
   -H "Content-Type: application/json" \\
   -d '{"input":"Hello world","voice":"alloy"}'`,
-  },
-  {
-    method: "GET",
-    path: "/api/r1a/health",
-    description: "Server health check (no auth required)",
-    curl: `curl ${API_BASE_URL}/api/r1a/health`,
+      },
+      {
+        method: "GET",
+        path: "/api/r1a/health",
+        description: "Server health check (no auth required).",
+        curl: `curl ${API_BASE_URL}/api/r1a/health`,
+      },
+    ],
   },
 ];
 
@@ -1511,31 +1693,41 @@ function ApiDocsSection() {
       </button>
 
       {expanded && (
-        <div className="border-t px-6 py-4 space-y-4">
+        <div className="border-t px-6 py-4 space-y-6">
           <p className="text-sm text-muted-foreground">
             Base URL:{" "}
             <code className="font-mono text-xs">{API_BASE_URL}</code>
           </p>
 
-          <div className="space-y-4">
-            {ENDPOINTS.map((ep) => (
-              <div key={ep.method + ep.path} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant="secondary"
-                    className="font-mono text-xs font-semibold"
-                  >
-                    {ep.method}
-                  </Badge>
-                  <code className="font-mono text-xs">{ep.path}</code>
-                </div>
-                <p className="text-xs text-muted-foreground">{ep.description}</p>
-                <pre className="rounded-md border bg-muted/40 p-3 overflow-x-auto text-xs font-mono">
-                  {ep.curl}
-                </pre>
+          {ENDPOINT_GROUPS.map((group) => (
+            <div key={group.title} className="space-y-3">
+              <div className="space-y-1">
+                <h4 className="text-sm font-semibold">{group.title}</h4>
+                <p className="text-xs text-muted-foreground">{group.blurb}</p>
               </div>
-            ))}
-          </div>
+              <div className="space-y-4">
+                {group.endpoints.map((ep) => (
+                  <div key={ep.method + ep.path} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="secondary"
+                        className="font-mono text-xs font-semibold"
+                      >
+                        {ep.method}
+                      </Badge>
+                      <code className="font-mono text-xs">{ep.path}</code>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {ep.description}
+                    </p>
+                    <pre className="rounded-md border bg-muted/40 p-3 overflow-x-auto text-xs font-mono">
+                      {ep.curl}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

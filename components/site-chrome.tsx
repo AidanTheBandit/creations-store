@@ -26,7 +26,7 @@ function BrandStripe() {
 // Routes that render their own full-screen UI and must NOT be wrapped in the
 // site Header/Footer. /r1a_client runs inside the R1 WebView at 240×282px —
 // site chrome would crowd the device screen and is meaningless there.
-const CHROME_FREE_PREFIXES = ["/r1a_client"];
+const CHROME_FREE_PREFIXES = ["/r1a_client", "/creation"];
 
 export function SiteChrome({
   user,

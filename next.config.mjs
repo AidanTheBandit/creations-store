@@ -50,6 +50,25 @@ const R1A_CSP = [
   `connect-src 'self' ${SUPABASE_ORIGIN} ${SUPABASE_WSS_ORIGIN} https://cdn.boondit.site https://*.linodeobjects.com https://cloudflareinsights.com`,
 ].join("; ");
 
+// /creation is the store running on the R1: it scans a pairing QR (camera) and
+// in "experience" mode EMBEDS arbitrary creation URLs in an iframe, so frame-src
+// + img-src must allow any https origin. It must also be embeddable by the R1
+// host (frame-ancestors omitted). Sites that send X-Frame-Options: DENY simply
+// can't be framed — handled by the screenshot fallback in the client.
+const CREATION_CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' blob: https:",
+  "font-src 'self' data:",
+  "frame-src https:",
+  `connect-src 'self' ${SUPABASE_ORIGIN} ${SUPABASE_WSS_ORIGIN} https://cdn.boondit.site https://*.linodeobjects.com https://cloudflareinsights.com`,
+].join("; ");
+
 const baseHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -82,6 +101,15 @@ const r1aHeaders = [
   },
 ];
 
+const creationHeaders = [
+  ...baseHeaders,
+  { key: "Content-Security-Policy", value: CREATION_CSP },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(self), microphone=(), geolocation=()",
+  },
+];
+
 const nextConfig = {
   poweredByHeader: false,
   images: {
@@ -93,12 +121,17 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: "/((?!r1a_client).*)",
+        // Everything except the two R1 device surfaces gets the strict policy.
+        source: "/((?!r1a_client|creation).*)",
         headers: siteHeaders,
       },
       {
         source: "/r1a_client/:path*",
         headers: r1aHeaders,
+      },
+      {
+        source: "/creation/:path*",
+        headers: creationHeaders,
       },
     ];
   },

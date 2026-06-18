@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getUserCreations, getAllCategories } from "@/lib/data";
 import { UserCreationManager } from "@/components/user/user-creation-manager";
 import Link from "next/link";
-import { Settings } from "lucide-react";
+import { Settings, Bookmark } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +39,13 @@ export default async function DashboardPage() {
                 My Dashboard
               </h1>
               <div className="flex items-center gap-4">
+                <Link
+                  href="/dashboard/saved"
+                  className="inline-flex h-8 items-center gap-2 rounded-md border bg-transparent px-3 text-sm font-medium transition-colors hover:bg-card"
+                >
+                  <Bookmark className="h-4 w-4" />
+                  Saved
+                </Link>
                 <Link
                   href="/dashboard/settings"
                   className="inline-flex h-8 items-center gap-2 rounded-md border bg-transparent px-3 text-sm font-medium transition-colors hover:bg-card"

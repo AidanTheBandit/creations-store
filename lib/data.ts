@@ -346,6 +346,112 @@ export async function getPublishedCreations(): Promise<(Creation & { category: C
 }
 
 // ============================================================
+// Bookmarks, feed-seen, and batched hydration (for /creation)
+// ============================================================
+
+/**
+ * Hydrate a list of creation ids into full Creation rows (with category + user
+ * + averageRating), preserving the order of `ids`. One select + one ratings
+ * fold — avoids the N+1 of calling getCreationById per id.
+ */
+export async function hydrateCreationsByIds(
+  ids: string[],
+): Promise<(Creation & { category: Category | null; user: User | null; averageRating: { average: number; count: number } | null })[]> {
+  if (ids.length === 0) return [];
+  const supabase = db();
+  const { data } = await supabase
+    .from("store_creations")
+    .select("*, store_categories(*), users(id, username, avatar_url, created_at, is_verified)")
+    .in("id", ids);
+
+  const { data: reviews } = await supabase
+    .from("store_reviews")
+    .select("creation_id, rating")
+    .in("creation_id", ids);
+
+  const ratingsMap = new Map<string, { average: number; count: number }>();
+  for (const rv of reviews || []) {
+    const existing = ratingsMap.get(rv.creation_id);
+    if (existing) {
+      existing.average =
+        Math.round(((existing.average * existing.count + rv.rating) / (existing.count + 1)) * 10) / 10;
+      existing.count += 1;
+    } else {
+      ratingsMap.set(rv.creation_id, { average: rv.rating, count: 1 });
+    }
+  }
+
+  const byId = new Map<string, any>();
+  for (const row of data || []) byId.set(row.id, row);
+
+  // Preserve the requested order (the feed ranking).
+  return ids
+    .map((id) => byId.get(id))
+    .filter(Boolean)
+    .map((row: any) => ({
+      ...mapCreation(row),
+      category: row.store_categories ? mapCategory(row.store_categories) : null,
+      user: mapUser(row.users),
+      averageRating: ratingsMap.get(row.id) || null,
+    }));
+}
+
+/** Creations a user has bookmarked, newest first (for the dashboard Saved list). */
+export async function getUserBookmarks(
+  userId: string,
+): Promise<(Creation & { category: Category | null })[]> {
+  const supabase = db();
+  const { data } = await supabase
+    .from("store_bookmarks")
+    .select("created_at, store_creations(*, store_categories(*))")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  return (data || [])
+    .map((row: any) => row.store_creations)
+    .filter(Boolean)
+    .map((c: any) => ({
+      ...mapCreation(c),
+      category: c.store_categories ? mapCategory(c.store_categories) : null,
+    }));
+}
+
+/** Add a bookmark. Returns true if newly created, false if it already existed. */
+export async function addBookmark(userId: string, creationId: string): Promise<boolean> {
+  const supabase = db();
+  const { error } = await supabase
+    .from("store_bookmarks")
+    .insert({ user_id: userId, creation_id: creationId });
+  if (error) {
+    if (error.code === "23505") return false; // already bookmarked
+    throw error;
+  }
+  return true;
+}
+
+export async function removeBookmark(userId: string, creationId: string): Promise<void> {
+  const supabase = db();
+  await supabase
+    .from("store_bookmarks")
+    .delete()
+    .eq("user_id", userId)
+    .eq("creation_id", creationId);
+}
+
+/** Mark creations as seen in the swipe feed (idempotent upsert). */
+export async function markFeedSeen(userId: string, creationIds: string[]): Promise<void> {
+  if (creationIds.length === 0) return;
+  const supabase = db();
+  const nowIso = new Date().toISOString();
+  await supabase
+    .from("store_feed_seen")
+    .upsert(
+      creationIds.map((creation_id) => ({ user_id: userId, creation_id, seen_at: nowIso })),
+      { onConflict: "user_id,creation_id", ignoreDuplicates: true },
+    );
+}
+
+// ============================================================
 // User queries
 // ============================================================
 

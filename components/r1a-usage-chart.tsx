@@ -64,7 +64,7 @@ export function R1AUsageChart({ data }: { data: DailyUsage[] }) {
             fontSize: "12px",
           }}
           labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-          formatter={(value: number) => [`${value}`, "Requests"]}
+          formatter={(value) => [`${value}`, "Requests"] as [string, string]}
         />
         <Area
           type="monotone"
