@@ -51,7 +51,11 @@ SELECT cron.schedule(
 
 -- ── Creation quality scores (cold-start ordering + CF quality multiplier) ──
 -- Bayesian-smoothed rating (prior mean 3.5, weight 5) × log(installs) × recency.
-CREATE OR REPLACE VIEW creation_quality_scores AS
+-- security_invoker: the view enforces the QUERYING role's permissions/RLS, not
+-- the view owner's (avoids the Supabase "Security Definer View" warning and any
+-- RLS bypass). We read it via the service-role admin client either way.
+CREATE OR REPLACE VIEW creation_quality_scores
+  WITH (security_invoker = true) AS
 SELECT
   c.id,
   ((COALESCE(r.rating_sum, 0) + 3.5 * 5) / (COALESCE(r.rating_cnt, 0) + 5)) AS bayes_rating,
