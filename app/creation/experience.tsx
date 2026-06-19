@@ -207,12 +207,13 @@ export function Experience({
     );
   }
 
-  // Render a 3-slide window (prev / current / next) on a rail that translates
-  // to center the current slide. ALL THREE get a live iframe so neighbors are
-  // already loaded when you swipe — only the current one is interactive; the
-  // off-screen ones preload silently (pointer-events disabled).
+  // Render a 5-slide window (2 prev / current / 2 next) on a rail that
+  // translates to center the current slide. ALL FIVE get a live iframe so the
+  // two creations in each direction are already loaded when you swipe — only
+  // the current one is interactive; the off-screen ones preload silently
+  // (pointer-events disabled).
   const slideWindow: { item: FeedItem; pos: number }[] = [];
-  for (let d = -1; d <= 1; d++) {
+  for (let d = -2; d <= 2; d++) {
     const j = idx + d;
     if (j >= 0 && j < items.length) slideWindow.push({ item: items[j], pos: d });
   }
