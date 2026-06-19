@@ -4,6 +4,7 @@ import { getForYouFeed } from "@/lib/feed";
 import { json, apiError, preflight } from "@/lib/api/respond";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hydrateCreationsByIds } from "@/lib/data";
+import { getExperimentFlags } from "@/lib/experiments";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,7 +66,12 @@ export async function GET(req: NextRequest) {
       return json({ data, pagination: { limit, offset, mode, personalized: false } });
     }
 
-    const items = await getForYouFeed({ userId, limit, offset });
+    // "Rabbit Creations Repo" experiment is per-user; anonymous never gets it.
+    const rabbitRepo = userId
+      ? (await getExperimentFlags(userId)).rabbitRepoEnabled
+      : false;
+
+    const items = await getForYouFeed({ userId, limit, offset, rabbitRepo });
     return json({
       data: items,
       pagination: {

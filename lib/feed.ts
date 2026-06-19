@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hydrateCreationsByIds } from "@/lib/data";
+import { getRabbitRepoCreations } from "@/lib/rabbit-repo";
 
 // "For You" feed = collaborative-filtering RPC (creation_feed_for_user) +
 // a TS diversity re-rank so one author/category can't flood the feed.
@@ -89,8 +90,10 @@ export async function getForYouFeed(opts: {
   userId: string | null;
   limit: number;
   offset: number;
+  // "Rabbit Creations Repo" experiment — when on, mix rabbit.tech repo items in.
+  rabbitRepo?: boolean;
 }): Promise<FeedItem[]> {
-  const { userId, limit, offset } = opts;
+  const { userId, limit, offset, rabbitRepo } = opts;
   const admin = createAdminClient();
 
   const { data: ranked, error } = await admin.rpc("creation_feed_for_user", {
@@ -110,7 +113,8 @@ export async function getForYouFeed(opts: {
   // catalog by quality, ignoring the seen set, so the feed loops instead of
   // showing "no creations yet".
   if (rows.length === 0) {
-    return getRecycledFeed(admin, limit);
+    const recycled = await getRecycledFeed(admin, limit);
+    return mixRabbitRepo(recycled, limit, offset, rabbitRepo);
   }
 
   const reasonById = new Map(rows.map((r) => [r.id, r.reason]));
@@ -119,7 +123,43 @@ export async function getForYouFeed(opts: {
     toFeedItem(c, reasonById.get(c.id) ?? "quality_fallback"),
   );
 
-  return diversityRerank(items, limit);
+  const reranked = diversityRerank(items, limit);
+  return mixRabbitRepo(reranked, limit, offset, rabbitRepo);
+}
+
+// Interleave rabbit.tech repo items into the feed at ~1 in 4 slots, capped so
+// they never dominate (they carry no CF/quality signal). No-op when the
+// experiment is off. Repo items use synthetic ids (not in store_creations), so
+// they're naturally excluded from seen-tracking and bookmarks. Paginated by
+// offset so the same repo items don't repeat on every page.
+async function mixRabbitRepo(
+  base: FeedItem[],
+  limit: number,
+  offset: number,
+  enabled: boolean | undefined,
+): Promise<FeedItem[]> {
+  if (!enabled) return base;
+  const repo = await getRabbitRepoCreations();
+  if (repo.length === 0) return base;
+
+  const EVERY = 4; // one repo item per ~4 store items
+  const wantCount = Math.max(1, Math.floor(base.length / (EVERY - 1)));
+  // Window into the repo list based on page offset so pages don't repeat.
+  const start = (Math.floor(offset / limit) * wantCount) % repo.length;
+  const picks: FeedItem[] = [];
+  for (let i = 0; i < wantCount && i < repo.length; i++) {
+    picks.push(repo[(start + i) % repo.length]);
+  }
+
+  const out: FeedItem[] = [];
+  let p = 0;
+  for (let i = 0; i < base.length; i++) {
+    out.push(base[i]);
+    if ((i + 1) % (EVERY - 1) === 0 && p < picks.length) out.push(picks[p++]);
+  }
+  // Any leftover picks (short base list) go at the end.
+  while (p < picks.length) out.push(picks[p++]);
+  return out.slice(0, limit + picks.length);
 }
 
 /**

@@ -246,6 +246,11 @@ export function Experience({
             transition: "transform 260ms cubic-bezier(0.22,1,0.36,1)",
             // Off-screen slides must not eat input meant for the focused one.
             pointerEvents: pos === 0 ? undefined : "none",
+            // `will-change-transform` makes each slide its own stacking context.
+            // Without an explicit z-index a neighbor's context can paint over the
+            // z-10/z-20 chrome mid-animation (fast scrolling), hiding "Use this" /
+            // Account. Cap slides below the chrome: current=1, off-screen=0.
+            zIndex: pos === 0 ? 1 : 0,
           }}
           aria-hidden={pos !== 0}
         >
@@ -275,8 +280,18 @@ export function Experience({
         onWheel={onWheel}
       />
 
-      {/* Top-right controls: interact toggle + account. Always above the rail. */}
+      {/* Top-right controls: bookmark + interact toggle + account. Always above
+          the rail. The bookmark lives here (not in the bottom chrome) so it
+          stays clear of the bottom gradient and reads as primary navigation. */}
       <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5">
+        <button
+          onClick={bookmark}
+          aria-label={bookmarked ? "Remove bookmark" : "Save"}
+          className="rounded-full bg-black/60 px-2 py-1 text-[11px] leading-none active:scale-95"
+          style={{ color: bookmarked ? "#fe5000" : "rgba(255,255,255,0.85)" }}
+        >
+          {bookmarked ? "★" : "☆"}
+        </button>
         {!currentBlocked &&
           (interacting ? (
             <button
@@ -302,8 +317,8 @@ export function Experience({
         </button>
       </div>
 
-      {/* Bottom chrome: title + save. Sits above the overlay so it stays tappable. */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-2 bg-gradient-to-t from-black/70 to-transparent px-2 pb-1.5 pt-5">
+      {/* Bottom chrome: title + author. Bookmark now lives in the top navbar. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/70 to-transparent px-2 pb-1.5 pt-5">
         <div className="min-w-0">
           <p className="truncate text-[10px] font-semibold text-white">
             {current.title}
@@ -313,13 +328,6 @@ export function Experience({
             {!interacting && " · swipe to browse"}
           </p>
         </div>
-        <button
-          onClick={bookmark}
-          className="pointer-events-auto ml-2 shrink-0 text-[11px] active:scale-95"
-          style={{ color: bookmarked ? "#fe5000" : "rgba(255,255,255,0.85)" }}
-        >
-          {bookmarked ? "★" : "☆"}
-        </button>
       </div>
 
       {toast && (

@@ -29,6 +29,7 @@ import {
   MessageSquare,
   Send,
   Upload,
+  FlaskConical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
@@ -176,6 +177,7 @@ export function AccountSettings({ user }: { user: CurrentUser }) {
     { id: "connected", label: "Connected", icon: Link2 },
     { id: "devices", label: "Devices", icon: Smartphone },
     { id: "developer", label: "Developer", icon: Code },
+    { id: "experiments", label: "Experiments", icon: FlaskConical },
     { id: "account", label: "Account", icon: Settings },
   ];
 
@@ -373,6 +375,13 @@ export function AccountSettings({ user }: { user: CurrentUser }) {
             </div>
           )}
 
+          {/* ─── Experiments: opt-in experimental features ────────── */}
+          {activeTab === "experiments" && (
+            <div className="space-y-6">
+              <ExperimentsSection />
+            </div>
+          )}
+
           {/* Account details */}
           {activeTab === "account" && (
             <div className="rounded-xl border bg-card p-6 space-y-3">
@@ -412,6 +421,234 @@ export function AccountSettings({ user }: { user: CurrentUser }) {
           Sign Out
         </Button>
       </form>
+    </div>
+  );
+}
+
+// ─── Experiments section (opt-in experimental features) ──────────
+// Two toggles: mix the official rabbit.tech creations repo into the feed, and
+// connect a rabbit hole account (its appSession token is stored encrypted and
+// only used server-side to fetch the user's own rabbit hole data).
+
+interface ExperimentFlags {
+  rabbitRepoEnabled: boolean;
+  rabbitHoleEnabled: boolean;
+  rabbitHoleTokenSet: boolean;
+}
+
+function ExperimentsSection() {
+  const [flags, setFlags] = useState<ExperimentFlags | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [savingFlag, setSavingFlag] = useState<string | null>(null);
+  const [token, setToken] = useState("");
+  const [savingToken, setSavingToken] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/account/experiments", { cache: "no-store" });
+        if (res.ok && active) setFlags(await res.json());
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const patchFlag = async (key: "rabbitRepoEnabled" | "rabbitHoleEnabled", value: boolean) => {
+    setSavingFlag(key);
+    // Optimistic.
+    setFlags((f) => (f ? { ...f, [key]: value } : f));
+    try {
+      const res = await fetch("/api/account/experiments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
+      if (res.ok) setFlags(await res.json());
+      else {
+        setFlags((f) => (f ? { ...f, [key]: !value } : f));
+        toast.error("Couldn't update experiment");
+      }
+    } catch {
+      setFlags((f) => (f ? { ...f, [key]: !value } : f));
+      toast.error("Couldn't update experiment");
+    } finally {
+      setSavingFlag(null);
+    }
+  };
+
+  const saveToken = async () => {
+    const value = token.trim();
+    if (!value) return;
+    setSavingToken(true);
+    try {
+      const res = await fetch("/api/account/experiments/rabbit-hole-token", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: value }),
+      });
+      if (res.ok) {
+        setFlags(await res.json());
+        setToken("");
+        toast.success("Token saved (encrypted)");
+      } else {
+        toast.error("Couldn't save token");
+      }
+    } catch {
+      toast.error("Couldn't save token");
+    } finally {
+      setSavingToken(false);
+    }
+  };
+
+  const clearToken = async () => {
+    setSavingToken(true);
+    try {
+      const res = await fetch("/api/account/experiments/rabbit-hole-token", {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setFlags(await res.json());
+        toast.success("Token removed");
+      } else {
+        toast.error("Couldn't remove token");
+      }
+    } catch {
+      toast.error("Couldn't remove token");
+    } finally {
+      setSavingToken(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border bg-card p-6 space-y-5">
+      <div className="flex items-center gap-2">
+        <FlaskConical className="h-5 w-5 text-primary" />
+        <h3 className="font-semibold">Experiments</h3>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Opt-in features that are still being tested. They may change or be
+        removed.
+      </p>
+
+      {loading || !flags ? (
+        <div className="flex justify-center py-6">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Rabbit Creations Repo */}
+          <div className="rounded-lg border bg-background/40 p-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={flags.rabbitRepoEnabled}
+                disabled={savingFlag === "rabbitRepoEnabled"}
+                onChange={(e) => patchFlag("rabbitRepoEnabled", e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-border"
+              />
+              <span>
+                <span className="block text-sm font-medium">
+                  Rabbit Creations Repo
+                </span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  Mix creations from the official rabbit.tech repo into your
+                  &quot;For You&quot; feed in the on-device store.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          {/* Rabbit Hole API */}
+          <div className="rounded-lg border bg-background/40 p-4 space-y-3">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={flags.rabbitHoleEnabled}
+                disabled={savingFlag === "rabbitHoleEnabled"}
+                onChange={(e) => patchFlag("rabbitHoleEnabled", e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-border"
+              />
+              <span>
+                <span className="block text-sm font-medium">Rabbit Hole API</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  Connect your rabbit hole account so the Boondit API can fetch
+                  your own journal, sessions, device state, and profile.
+                </span>
+              </span>
+            </label>
+
+            {flags.rabbitHoleEnabled && (
+              <div className="space-y-2 pl-7">
+                <div className="flex items-start gap-2 rounded-md border border-yellow-900/40 bg-yellow-950/20 p-2.5 text-xs text-yellow-200/90">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    Your <code className="font-mono">appSession</code> token is
+                    encrypted at rest (AES-256-GCM) and is only ever used
+                    server-side to fetch your own data. It is never shown again
+                    after saving.
+                  </span>
+                </div>
+
+                {flags.rabbitHoleTokenSet ? (
+                  <div className="flex items-center justify-between rounded-md border bg-background px-3 py-2">
+                    <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Check className="h-3.5 w-3.5 text-primary" />
+                      Token connected
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={clearToken}
+                      disabled={savingToken}
+                    >
+                      {savingToken ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4 mr-1" />
+                      )}
+                      Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <div className="flex-1">
+                      <Label htmlFor="rh-token" className="text-xs">
+                        rabbit hole appSession token
+                      </Label>
+                      <Input
+                        id="rh-token"
+                        type="password"
+                        value={token}
+                        onChange={(e) => setToken(e.target.value)}
+                        placeholder="Paste your appSession value"
+                        className="mt-1 font-mono"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={saveToken}
+                      disabled={savingToken || !token.trim()}
+                    >
+                      {savingToken ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4 mr-1" />
+                      )}
+                      Save token
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1101,6 +1338,7 @@ function StoreApiSection() {
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [writeScope, setWriteScope] = useState(false);
+  const [rabbitHoleScope, setRabbitHoleScope] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -1125,7 +1363,11 @@ function StoreApiSection() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim() || "Default",
-          scopes: writeScope ? ["read", "write"] : ["read"],
+          scopes: [
+            "read",
+            ...(writeScope ? ["write"] : []),
+            ...(rabbitHoleScope ? ["rabbithole"] : []),
+          ],
         }),
       });
       const data = await res.json();
@@ -1136,6 +1378,7 @@ function StoreApiSection() {
       setNewKey(data.apiKey);
       setName("");
       setWriteScope(false);
+      setRabbitHoleScope(false);
       load();
     } finally {
       setCreating(false);
@@ -1222,6 +1465,15 @@ function StoreApiSection() {
             className="h-4 w-4 rounded border-border"
           />
           Allow write
+        </label>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground sm:pb-2.5">
+          <input
+            type="checkbox"
+            checked={rabbitHoleScope}
+            onChange={(e) => setRabbitHoleScope(e.target.checked)}
+            className="h-4 w-4 rounded border-border"
+          />
+          Rabbit hole
         </label>
         <Button size="sm" onClick={create} disabled={creating}>
           {creating ? (

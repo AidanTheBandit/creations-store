@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // two systems can't be confused. Only the peppered hash is stored.
 
 const KEY_PREFIX = "boondit_sk_"; // "store key"
-export const API_SCOPES = ["read", "write"] as const;
+export const API_SCOPES = ["read", "write", "rabbithole"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
 export interface StoreApiKeyData {

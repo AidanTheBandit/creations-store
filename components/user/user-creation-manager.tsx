@@ -165,13 +165,13 @@ export function UserCreationManager({
                   <div className="flex items-center gap-1.5">
                     <span
                       className={`h-1.5 w-1.5 rounded-full ${
-                        isPublished ? "bg-green-500" : "bg-muted-foreground"
+                        isPublished ? "bg-primary" : "bg-muted-foreground"
                       }`}
                     />
                     <span
                       className={`text-xs ${
                         isPublished
-                          ? "text-green-500"
+                          ? "text-primary"
                           : "text-muted-foreground"
                       }`}
                     >
