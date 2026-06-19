@@ -262,16 +262,18 @@ export function Experience({
         </div>
       ))}
 
-      {/* Gesture overlay — owns swipe/scroll while navigating. Tapping "Use
-          this" lifts it so the creation receives input. */}
-      {!interacting && (
-        <div
-          className="absolute inset-0 z-10"
-          onTouchStart={onTouchStart}
-          onTouchEnd={onTouchEnd}
-          onWheel={onWheel}
-        />
-      )}
+      {/* Gesture overlay — owns swipe/scroll while navigating. Always mounted
+          (toggling pointer-events, not unmounting) so a burst of re-renders
+          during fast scrolling can't tear it down mid-gesture and let swipes
+          fall through to the iframe. Tapping "Use this" lifts it (pointer-events
+          off) so the creation receives input. */}
+      <div
+        className="absolute inset-0 z-10"
+        style={{ pointerEvents: interacting ? "none" : "auto" }}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onWheel={onWheel}
+      />
 
       {/* Top-right controls: interact toggle + account. Always above the rail. */}
       <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5">
