@@ -1558,6 +1558,15 @@ function StoreApiSection() {
             <code className="font-mono">GET /api/v1/categories</code> — list
             categories (public)
           </li>
+          <li>
+            <code className="font-mono">GET /api/v1/creations.json</code> —
+            public repo export (rabbit.tech schema, no auth)
+          </li>
+          <li>
+            <code className="font-mono">GET /api/v1/rabbithole/:resource</code>{" "}
+            — your rabbit hole data (needs <code>rabbithole</code> scope +
+            connected token)
+          </li>
         </ul>
         <pre className="mt-2 overflow-x-auto rounded-md border bg-background p-3 text-[11px] font-mono">
           {`curl ${API_BASE_URL}/api/v1/creations \\
@@ -1872,6 +1881,28 @@ const ENDPOINT_GROUPS: EndpointGroup[] = [
         path: "/api/v1/categories",
         description: "List all catalog categories.",
         curl: `curl ${API_BASE_URL}/api/v1/categories \\
+  -H "Authorization: Bearer boondit_sk_..."`,
+      },
+      {
+        method: "GET",
+        path: "/api/v1/creations.json",
+        description:
+          "Public export of all published creations as a bare JSON array in the rabbit.tech repo schema ({ title, url, description, iconUrl, themeColor, author, screenshotUrl }). No auth — drop-in for third-party repo managers.",
+        curl: `curl ${API_BASE_URL}/api/v1/creations.json`,
+      },
+    ],
+  },
+  {
+    title: "Rabbit Hole API (experiment)",
+    blurb:
+      "Read your own rabbit hole data through Boondit. Enable the Rabbit Hole experiment and save your appSession token under Settings → Experiments first. Authenticate with a Store key that has the rabbithole scope. resource ∈ profile | journal | sessions | device.",
+    endpoints: [
+      {
+        method: "GET",
+        path: "/api/v1/rabbithole/{resource}",
+        description:
+          "Fetch your rabbit hole data. profile (account), journal, sessions (add ?days=N, default 7), device (device state). Returns { data: <upstream payload> }.",
+        curl: `curl "${API_BASE_URL}/api/v1/rabbithole/sessions?days=7" \\
   -H "Authorization: Bearer boondit_sk_..."`,
       },
     ],
