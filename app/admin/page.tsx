@@ -6,8 +6,13 @@ import {
   getAllBookmarks,
   getAdminUsers,
 } from "@/lib/data";
-import { getPlatformAnalytics, getAllCreationsAnalytics } from "@/lib/analytics";
+import {
+  getPlatformAnalytics,
+  getAllCreationsAnalytics,
+  getPlatformDailyStats,
+} from "@/lib/analytics";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { PlatformActivityChart } from "@/components/admin/platform-activity-chart";
 import { CategoryManager } from "@/components/admin/category-manager";
 import { BookmarkManager } from "@/components/admin/bookmark-manager";
 import { UserAdminManager } from "@/components/admin/user-admin-manager";
@@ -57,13 +62,15 @@ function StatCard({
 }
 
 export default async function AdminPage() {
-  const [platform, creationRows, categories, bookmarks, users] = await Promise.all([
-    getPlatformAnalytics(),
-    getAllCreationsAnalytics(),
-    getAllCategories(),
-    getAllBookmarks(),
-    getAdminUsers(),
-  ]);
+  const [platform, creationRows, dailyStats, categories, bookmarks, users] =
+    await Promise.all([
+      getPlatformAnalytics(),
+      getAllCreationsAnalytics(),
+      getPlatformDailyStats(30),
+      getAllCategories(),
+      getAllBookmarks(),
+      getAdminUsers(),
+    ]);
 
   // All creations (every status) for the management tab.
   const admin = createAdminClient();
@@ -130,6 +137,19 @@ export default async function AdminPage() {
                   value={platform.avgRating || "—"}
                 />
                 <StatCard icon={Users} label="Users" value={platform.totalUsers} />
+              </div>
+
+              {/* Platform activity trend */}
+              <div className="rounded-xl border bg-card">
+                <div className="border-b bg-muted/50 p-4">
+                  <h2 className="text-lg font-semibold">Activity (last 30 days)</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Daily clicks and installs across all creations.
+                  </p>
+                </div>
+                <div className="p-4">
+                  <PlatformActivityChart data={dailyStats} />
+                </div>
               </div>
             </TabsContent>
 

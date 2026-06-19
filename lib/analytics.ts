@@ -629,6 +629,55 @@ export async function getPlatformAnalytics(): Promise<PlatformAnalytics> {
   };
 }
 
+export interface PlatformDailyPoint {
+  date: string;
+  clicks: number;
+  installs: number;
+  views: number;
+}
+
+/**
+ * Platform-wide daily activity (clicks + installs across ALL creations) over
+ * the last N days, ascending by date and gap-filled so the chart has a
+ * continuous x-axis. Views aren't time-stamped per-event (only a denormalized
+ * counter), so this tracks clicks + installs.
+ */
+export async function getPlatformDailyStats(
+  days: number = 30,
+): Promise<PlatformDailyPoint[]> {
+  const supabase = db();
+  const sinceMs = now() - days * 24 * 60 * 60 * 1000;
+  const sinceIso = new Date(sinceMs).toISOString();
+
+  const [clicks, installs] = await Promise.all([
+    supabase.from("store_clicks").select("clicked_at").gte("clicked_at", sinceIso),
+    supabase.from("store_installs").select("installed_at").gte("installed_at", sinceIso),
+  ]);
+
+  const byDate = new Map<string, { clicks: number; installs: number }>();
+  const bump = (dateStr: string, key: "clicks" | "installs") => {
+    if (!byDate.has(dateStr)) byDate.set(dateStr, { clicks: 0, installs: 0 });
+    byDate.get(dateStr)![key] += 1;
+  };
+  for (const c of clicks.data || []) {
+    bump(new Date(parseTime(c.clicked_at)).toISOString().split("T")[0], "clicks");
+  }
+  for (const i of installs.data || []) {
+    bump(new Date(parseTime(i.installed_at)).toISOString().split("T")[0], "installs");
+  }
+
+  // Gap-fill every day in the window so the area chart is continuous.
+  const out: PlatformDailyPoint[] = [];
+  for (let d = days - 1; d >= 0; d--) {
+    const dateStr = new Date(now() - d * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+    const e = byDate.get(dateStr);
+    out.push({ date: dateStr, clicks: e?.clicks || 0, installs: e?.installs || 0, views: 0 });
+  }
+  return out;
+}
+
 // Tally a list of { creation_id } rows into a Map<id, count>.
 function tally(rows: { creation_id: string }[] | null): Map<string, number> {
   const m = new Map<string, number>();
