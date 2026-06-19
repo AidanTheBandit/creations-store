@@ -32,19 +32,13 @@ export default function AdminHeader() {
               href="/admin"
               className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
             >
+              Dashboard
+            </Link>
+            <Link
+              href="/admin/basic"
+              className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+            >
               Add Creation
-            </Link>
-            <Link
-              href="/admin/manage"
-              className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              Manage Creations
-            </Link>
-            <Link
-              href="/admin/users"
-              className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              Manage Users
             </Link>
           </nav>
           <button

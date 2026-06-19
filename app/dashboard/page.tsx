@@ -2,8 +2,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getUserCreations, getAllCategories } from "@/lib/data";
 import { UserCreationManager } from "@/components/user/user-creation-manager";
-import Link from "next/link";
-import { Settings, Bookmark } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -33,44 +31,11 @@ export default async function DashboardPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="p-8">
           <div className="space-y-8">
-            {/* Compact header */}
+            {/* Compact header — account/Bookmarked/Settings live in the navbar */}
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-bold tracking-tight">
                 My Dashboard
               </h1>
-              <div className="flex items-center gap-4">
-                <Link
-                  href="/dashboard/saved"
-                  className="inline-flex h-8 items-center gap-2 rounded-md border bg-transparent px-3 text-sm font-medium transition-colors hover:bg-card"
-                >
-                  <Bookmark className="h-4 w-4" />
-                  Saved
-                </Link>
-                <Link
-                  href="/dashboard/settings"
-                  className="inline-flex h-8 items-center gap-2 rounded-md border bg-transparent px-3 text-sm font-medium transition-colors hover:bg-card"
-                >
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </Link>
-                <div className="flex items-center gap-2.5">
-                  {user.avatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={user.avatar}
-                      alt={user.name}
-                      className="h-8 w-8 rounded-full border object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full border bg-muted text-xs font-bold">
-                      {user.name?.[0]?.toUpperCase() || "?"}
-                    </div>
-                  )}
-                  <span className="hidden text-sm font-medium sm:inline">
-                    {user.username || user.name}
-                  </span>
-                </div>
-              </div>
             </div>
 
             {/* Stat pills */}

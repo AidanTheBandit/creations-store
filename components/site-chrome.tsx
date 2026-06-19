@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Bookmark } from "lucide-react";
 import { directory } from "@/directory.config";
 import { UserMenu } from "@/components/user-menu";
 
@@ -74,6 +75,14 @@ function Header({ user }: { user: ChromeUser }) {
           </Link>
           {user ? (
             <>
+              <Link
+                href="/dashboard/saved"
+                className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-card"
+                title="Bookmarked"
+              >
+                <Bookmark className="h-4 w-4" />
+                <span className="hidden sm:inline">Bookmarked</span>
+              </Link>
               {user.isAdmin && (
                 <Link
                   href="/admin"

@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, Eye, Trash2, Pencil } from "lucide-react";
+import { Plus, Loader2, Eye, EyeOff, Trash2, Pencil } from "lucide-react";
 import {
   createCreation,
   updateCreation,
   deleteCreation,
   publishCreation,
+  unpublishCreation,
   type ActionState,
 } from "@/lib/actions";
 import { toast } from "sonner";
@@ -33,6 +34,7 @@ interface Creation {
   ogImage: string | null;
   categoryId: string | null;
   status: "draft" | "published";
+  themeColor: string | null;
   isFavorite: boolean;
   isArchived: boolean;
 }
@@ -55,6 +57,7 @@ export function UserCreationManager({
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState<string | null>(null);
+  const [isUnpublishing, setIsUnpublishing] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const handlePublish = async (id: string) => {
@@ -64,13 +67,30 @@ export function UserCreationManager({
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success("Bookmark published!");
+        toast.success("Creation published!");
         router.refresh();
       }
     } catch (error) {
       toast.error("Failed to publish");
     } finally {
       setIsPublishing(null);
+    }
+  };
+
+  const handleUnpublish = async (id: string) => {
+    setIsUnpublishing(id);
+    try {
+      const result = await unpublishCreation(null, { id, userId });
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("Moved to drafts");
+        router.refresh();
+      }
+    } catch (error) {
+      toast.error("Failed to unpublish");
+    } finally {
+      setIsUnpublishing(null);
     }
   };
 
@@ -125,16 +145,20 @@ export function UserCreationManager({
           {creations.map((creation) => {
             const isPublished = creation.status === "published";
             const idStr = creation.id.toString();
+            // Published creations show their status in their own selected
+            // themeColor (falling back to the site accent when unset).
+            const accent = creation.themeColor || "hsl(var(--primary))";
             return (
               <div
                 key={creation.id}
                 className="group relative flex flex-col overflow-hidden rounded-md border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
               >
-                {/* Left accent bar */}
+                {/* Left accent bar — published uses the creation's themeColor */}
                 <div
                   className={`absolute left-0 top-0 h-full w-1 ${
-                    isPublished ? "bg-primary" : "bg-muted-foreground/40"
+                    isPublished ? "" : "bg-muted-foreground/40"
                   }`}
+                  style={isPublished ? { backgroundColor: accent } : undefined}
                 />
 
                 <div className="flex flex-1 flex-col space-y-3 p-4 pl-5">
@@ -161,19 +185,21 @@ export function UserCreationManager({
                     )}
                   </div>
 
-                  {/* Status indicator */}
+                  {/* Status indicator — published shown in the themeColor */}
                   <div className="flex items-center gap-1.5">
                     <span
                       className={`h-1.5 w-1.5 rounded-full ${
-                        isPublished ? "bg-primary" : "bg-muted-foreground"
+                        isPublished ? "" : "bg-muted-foreground"
                       }`}
+                      style={
+                        isPublished ? { backgroundColor: accent } : undefined
+                      }
                     />
                     <span
                       className={`text-xs ${
-                        isPublished
-                          ? "text-primary"
-                          : "text-muted-foreground"
+                        isPublished ? "" : "text-muted-foreground"
                       }`}
+                      style={isPublished ? { color: accent } : undefined}
                     >
                       {isPublished ? "Published" : "Draft"}
                     </span>
@@ -196,7 +222,7 @@ export function UserCreationManager({
                       <Pencil className="mr-1.5 h-3.5 w-3.5" />
                       Edit
                     </Button>
-                    {!isPublished && (
+                    {!isPublished ? (
                       <Button
                         variant="outline"
                         size="sm"
@@ -209,6 +235,20 @@ export function UserCreationManager({
                           <Eye className="mr-1.5 h-3.5 w-3.5" />
                         )}
                         Publish
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleUnpublish(idStr)}
+                        disabled={isUnpublishing === idStr}
+                      >
+                        {isUnpublishing === idStr ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <EyeOff className="mr-1.5 h-3.5 w-3.5" />
+                        )}
+                        Unpublish
                       </Button>
                     )}
                     <Button

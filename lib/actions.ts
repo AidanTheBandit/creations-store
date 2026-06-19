@@ -588,6 +588,46 @@ export async function publishCreation(
   }
 }
 
+export async function unpublishCreation(
+  prevState: ActionState | null,
+  formData: { id: string; userId: string },
+): Promise<ActionState> {
+  try {
+    const sessionUser = await getCurrentUser();
+    if (!sessionUser) {
+      return { error: "Unauthorized" };
+    }
+
+    const admin = createAdminClient();
+
+    const { data: creation } = await admin
+      .from("store_creations")
+      .select("user_id")
+      .eq("id", formData.id)
+      .maybeSingle();
+
+    if (!creation || creation.user_id !== sessionUser.id) {
+      return { error: "Unauthorized" };
+    }
+
+    const { error } = await admin
+      .from("store_creations")
+      .update({ status: "draft" })
+      .eq("id", formData.id);
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("Error unpublishing creation:", error);
+    return { error: "Failed to unpublish creation" };
+  }
+}
+
 export async function deleteCreation(
   prevState: ActionState | null,
   formData: {

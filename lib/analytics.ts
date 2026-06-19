@@ -532,3 +532,169 @@ export async function getCreationByProxyCode(proxyCode: string) {
 function now(): number {
   return Date.now();
 }
+
+// ─── Platform-wide analytics (admin dashboard) ──────────────────────
+
+export interface PlatformAnalytics {
+  totalCreations: number;
+  publishedCreations: number;
+  draftCreations: number;
+  totalViews: number;
+  totalInstalls: number;
+  totalClicks: number;
+  totalBookmarks: number;
+  totalReviews: number;
+  avgRating: number;
+  totalUsers: number;
+}
+
+export interface CreationAnalyticsRow {
+  id: string;
+  title: string;
+  author: string | null;
+  themeColor: string | null;
+  status: string;
+  views: number;
+  installs: number;
+  clicks: number;
+  bookmarks: number;
+  ratingCount: number;
+  avgRating: number;
+  qscore: number;
+}
+
+// Count rows in a table, optionally filtered, without pulling the data.
+async function countRows(
+  table: string,
+  filter?: (q: any) => any,
+): Promise<number> {
+  const supabase = db();
+  let q = supabase.from(table).select("*", { count: "exact", head: true });
+  if (filter) q = filter(q);
+  const { count } = await q;
+  return count || 0;
+}
+
+/** Platform-wide totals for the admin overview. */
+export async function getPlatformAnalytics(): Promise<PlatformAnalytics> {
+  const supabase = db();
+
+  const [
+    publishedCreations,
+    draftCreations,
+    totalInstalls,
+    totalClicks,
+    totalBookmarks,
+    totalUsers,
+  ] = await Promise.all([
+    countRows("store_creations", (q) => q.eq("status", "published")),
+    countRows("store_creations", (q) => q.eq("status", "draft")),
+    countRows("store_installs"),
+    countRows("store_clicks"),
+    countRows("store_bookmarks"),
+    countRows("users"),
+  ]);
+
+  // Sum of denormalized views across all creations.
+  const { data: viewRows } = await supabase
+    .from("store_creations")
+    .select("views");
+  const totalViews = (viewRows || []).reduce(
+    (sum, r: any) => sum + (r.views || 0),
+    0,
+  );
+
+  // Ratings: count + average across all reviews.
+  const { data: reviewRows } = await supabase
+    .from("store_reviews")
+    .select("rating");
+  const totalReviews = (reviewRows || []).length;
+  const avgRating =
+    totalReviews > 0
+      ? (reviewRows || []).reduce((s, r: any) => s + (r.rating || 0), 0) /
+        totalReviews
+      : 0;
+
+  return {
+    totalCreations: publishedCreations + draftCreations,
+    publishedCreations,
+    draftCreations,
+    totalViews,
+    totalInstalls,
+    totalClicks,
+    totalBookmarks,
+    totalReviews,
+    avgRating: Math.round(avgRating * 100) / 100,
+    totalUsers,
+  };
+}
+
+// Tally a list of { creation_id } rows into a Map<id, count>.
+function tally(rows: { creation_id: string }[] | null): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const r of rows || []) {
+    m.set(r.creation_id, (m.get(r.creation_id) || 0) + 1);
+  }
+  return m;
+}
+
+/**
+ * Per-creation analytics for ALL published creations (admin table). Built from
+ * a handful of bulk selects tallied in TS — no per-creation N+1.
+ */
+export async function getAllCreationsAnalytics(): Promise<CreationAnalyticsRow[]> {
+  const supabase = db();
+
+  const { data: creations } = await supabase
+    .from("store_creations")
+    .select("id, title, author, theme_color, status, views")
+    .eq("status", "published")
+    .order("views", { ascending: false });
+
+  const list = creations || [];
+  if (list.length === 0) return [];
+
+  const ids = list.map((c: any) => c.id);
+
+  const [installs, clicks, bookmarks, reviews, scores] = await Promise.all([
+    supabase.from("store_installs").select("creation_id").in("creation_id", ids),
+    supabase.from("store_clicks").select("creation_id").in("creation_id", ids),
+    supabase.from("store_bookmarks").select("creation_id").in("creation_id", ids),
+    supabase.from("store_reviews").select("creation_id, rating").in("creation_id", ids),
+    supabase.from("creation_quality_scores").select("id, qscore").in("id", ids),
+  ]);
+
+  const installMap = tally(installs.data as any);
+  const clickMap = tally(clicks.data as any);
+  const bookmarkMap = tally(bookmarks.data as any);
+
+  const ratingSum = new Map<string, number>();
+  const ratingCnt = new Map<string, number>();
+  for (const r of (reviews.data || []) as any[]) {
+    ratingSum.set(r.creation_id, (ratingSum.get(r.creation_id) || 0) + (r.rating || 0));
+    ratingCnt.set(r.creation_id, (ratingCnt.get(r.creation_id) || 0) + 1);
+  }
+
+  const scoreMap = new Map<string, number>();
+  for (const s of (scores.data || []) as any[]) {
+    scoreMap.set(s.id, Number(s.qscore) || 0);
+  }
+
+  return list.map((c: any) => {
+    const cnt = ratingCnt.get(c.id) || 0;
+    return {
+      id: c.id,
+      title: c.title,
+      author: c.author,
+      themeColor: c.theme_color,
+      status: c.status,
+      views: c.views || 0,
+      installs: installMap.get(c.id) || 0,
+      clicks: clickMap.get(c.id) || 0,
+      bookmarks: bookmarkMap.get(c.id) || 0,
+      ratingCount: cnt,
+      avgRating: cnt > 0 ? Math.round(((ratingSum.get(c.id) || 0) / cnt) * 100) / 100 : 0,
+      qscore: Math.round((scoreMap.get(c.id) || 0) * 1000) / 1000,
+    };
+  });
+}

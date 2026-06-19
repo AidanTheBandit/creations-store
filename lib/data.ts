@@ -494,6 +494,44 @@ export async function getAllUsers(): Promise<(User & { creationCount: number })[
   }));
 }
 
+export interface AdminUserRow {
+  id: string;
+  username: string | null;
+  avatarUrl: string | null;
+  createdAt: string;
+  isVerified: boolean;
+  isSuspended: boolean;
+  creationCount: number;
+}
+
+// Admin user list including suspension state (getAllUsers omits is_suspended).
+export async function getAdminUsers(): Promise<AdminUserRow[]> {
+  const supabase = db();
+  const { data: allUsers } = await supabase
+    .from("users")
+    .select("id, username, avatar_url, created_at, is_verified, is_suspended")
+    .order("created_at", { ascending: false });
+  if (!allUsers) return [];
+
+  const { data: allCreations } = await supabase
+    .from("store_creations")
+    .select("user_id");
+  const countMap = new Map<string, number>();
+  for (const c of allCreations || []) {
+    if (c.user_id) countMap.set(c.user_id, (countMap.get(c.user_id) || 0) + 1);
+  }
+
+  return allUsers.map((u: any) => ({
+    id: u.id,
+    username: u.username,
+    avatarUrl: u.avatar_url,
+    createdAt: u.created_at,
+    isVerified: u.is_verified ?? false,
+    isSuspended: u.is_suspended ?? false,
+    creationCount: countMap.get(u.id) || 0,
+  }));
+}
+
 export async function getUserProfile(userId: string) {
   const user = await getUserById(userId);
   if (!user) return null;
