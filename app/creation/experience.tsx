@@ -39,14 +39,23 @@ export function Experience({
     if (items.length > 0) setIdx((i) => Math.max(0, Math.min(items.length - 1, i)));
   }, [items.length]);
 
+  // Far (±2) slides mount their iframe only after the swipe settles, so five
+  // live frames don't all run JS during the transition (that's what felt
+  // laggy). Adjacent (±1) frames stay mounted immediately for instant swipes.
+  const [warmFar, setWarmFar] = useState(false);
+
   // On each creation change: mark seen, prefetch, record view, reset per-item UI.
   // (Frame-blocked detection now lives per-Slide so neighbors can preload.)
   useEffect(() => {
     if (!current) return;
     setBookmarked(false);
     setInteracting(false); // every new creation starts in navigation mode
+    setWarmFar(false); // hold the far frames until the swipe animation settles
     markSeen([current.id]);
     maybePrefetch(idx);
+
+    // Warm the ±2 frames a beat after the 260ms slide animation finishes.
+    const warm = setTimeout(() => setWarmFar(true), 380);
 
     // Contribute to the creation's analytics (published-gated + deduped on the
     // server, so this won't inflate views on drafts or repeat opens).
@@ -55,6 +64,8 @@ export function Experience({
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify({ creationId: current.id }),
     }).catch(() => {});
+
+    return () => clearTimeout(warm);
   }, [current, idx, markSeen, maybePrefetch]);
 
   const showToast = useCallback((msg: string) => {
@@ -242,6 +253,9 @@ export function Experience({
             item={item}
             // Only the current slide is reachable; neighbors preload muted.
             active={pos === 0}
+            // Current + adjacent mount immediately; far (±2) wait for warmFar
+            // so we don't spin up five live frames mid-swipe.
+            mountFrame={Math.abs(pos) <= 1 || warmFar}
             onBlocked={markBlocked}
             onLoaded={markLoaded}
           />
@@ -321,22 +335,26 @@ export function Experience({
 function Slide({
   item,
   active,
+  mountFrame,
   onBlocked,
   onLoaded,
 }: {
   item: FeedItem;
   active: boolean;
+  mountFrame: boolean;
   onBlocked: (id: string) => void;
   onLoaded: (id: string) => void;
 }) {
   const [blocked, setBlocked] = useState(false);
   const loaded = useRef(false);
 
-  // Re-arm ONLY when the slide shows a different creation. onBlocked/onLoaded
-  // are stable (useCallback in the parent), so a parent re-render won't restart
-  // this timer against an already-loaded iframe — which would falsely mark a
-  // sitting slide as blocked and hide its "Use this" button.
+  // Re-arm ONLY when the slide shows a different creation OR once the frame is
+  // allowed to mount (far slides mount late). onBlocked/onLoaded are stable
+  // (useCallback in the parent), so a parent re-render won't restart this timer
+  // against an already-loaded iframe — which would falsely mark a sitting slide
+  // as blocked and hide its "Use this" button.
   useEffect(() => {
+    if (!mountFrame) return; // no iframe yet → nothing to time
     loaded.current = false;
     setBlocked(false);
     // Frame-block fallback. A framed site fires `load` within a second or two;
@@ -349,9 +367,11 @@ function Slide({
       }
     }, 3000);
     return () => clearTimeout(t);
-  }, [item.id, onBlocked]);
+  }, [item.id, mountFrame, onBlocked]);
 
-  if (blocked) return <Poster item={item} blocked />;
+  // Show the poster as a placeholder until the frame is allowed to mount, and
+  // as the fallback if the site refuses framing.
+  if (!mountFrame || blocked) return <Poster item={item} blocked={blocked} />;
 
   return (
     <iframe
