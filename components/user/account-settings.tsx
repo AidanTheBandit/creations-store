@@ -1911,7 +1911,7 @@ const ENDPOINT_GROUPS: EndpointGroup[] = [
         method: "POST",
         path: "/api/v1/rabbithole/{resource}",
         description:
-          "Write resources: update-profile (body { profile }), genui-enrolled / voice-enrolled (body { enrolled: bool }), magic-gallery (body { enabled: bool }), genui-prompt / voice-set-prompt (body { customPrompt }).",
+          "Write resources: update-profile (body { profile }), genui-enrolled / voice-enrolled (body { enrolled: bool }), magic-gallery (body { enabled: bool }), genui-prompt / voice-set-prompt (body { customPrompt }), voice-active-slot (body { slotId }).",
         curl: `curl -X POST ${API_BASE_URL}/api/v1/rabbithole/genui-prompt \\
   -H "Authorization: Bearer boondit_sk_..." \\
   -H "Content-Type: application/json" \\

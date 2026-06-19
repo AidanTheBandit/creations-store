@@ -92,6 +92,13 @@ export const RH_SPECS: Record<string, RhSpec> = {
     kind: "write",
     buildBody: (i) => ({ customPrompt: String(i.customPrompt ?? "") }),
   },
+  "voice-active-slot": {
+    path: "/apis/setActiveVoiceSlot",
+    method: "POST",
+    tokenIn: "body",
+    kind: "write",
+    buildBody: (i) => ({ slotId: String(i.slotId ?? "") }),
+  },
   "magic-gallery": {
     path: "/apis/setMagicGalleryEnabled",
     method: "PATCH",
