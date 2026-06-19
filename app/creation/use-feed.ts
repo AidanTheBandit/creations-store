@@ -52,7 +52,12 @@ export function useFeed() {
         offsetRef.current += incoming.length;
         setItems((prev) => {
           const seen = new Set(prev.map((i) => i.id));
-          return [...prev, ...incoming.filter((i) => !seen.has(i.id))];
+          const fresh = incoming.filter((i) => !seen.has(i.id));
+          // Once the server starts recycling (returns rows we already have),
+          // a page can be all duplicates. Stop paginating so we don't busy-loop
+          // fetching the same recycled tail — the user already has the full set.
+          if (fresh.length === 0) setExhausted(true);
+          return [...prev, ...fresh];
         });
       }
     } catch (e) {

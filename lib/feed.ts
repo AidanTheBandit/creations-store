@@ -56,6 +56,31 @@ function diversityRerank<T extends { categoryId: string | null; author: string |
   return out;
 }
 
+// Don't echo the self-referential store creation back into the feed (its url
+// points at /creation, which would recurse).
+const STORE_URL_RE = /boondit\.site\/creation/i;
+
+type HydratedCreation = Awaited<ReturnType<typeof hydrateCreationsByIds>>[number];
+
+function toFeedItem(c: HydratedCreation, reason: string): FeedItem {
+  return {
+    id: c.id,
+    title: c.title,
+    url: c.url,
+    slug: c.slug,
+    iconUrl: c.iconUrl,
+    screenshotUrl: c.screenshotUrl,
+    themeColor: c.themeColor,
+    author: c.author,
+    categoryId: c.categoryId,
+    category: c.category ? { id: c.category.id, name: c.category.name, slug: c.category.slug } : null,
+    avgRating: c.averageRating?.average ?? null,
+    ratingCount: c.averageRating?.count ?? 0,
+    proxyCode: c.proxyCode,
+    reason,
+  };
+}
+
 /**
  * Personalized feed for a user (or anonymous cold-start if userId is null).
  * Over-fetches from the RPC, hydrates in one batch, diversity-reranks, slices.
@@ -79,25 +104,46 @@ export async function getForYouFeed(opts: {
   }
 
   const rows = (ranked || []) as { id: string; score: number; reason: string }[];
+
+  // Empty RPC result means the user has seen the whole catalog (the RPC excludes
+  // store_feed_seen). On a small catalog that's a dead-end — recycle the
+  // catalog by quality, ignoring the seen set, so the feed loops instead of
+  // showing "no creations yet".
+  if (rows.length === 0) {
+    return getRecycledFeed(admin, limit);
+  }
+
   const reasonById = new Map(rows.map((r) => [r.id, r.reason]));
   const hydrated = await hydrateCreationsByIds(rows.map((r) => r.id));
+  const items = hydrated.map((c) =>
+    toFeedItem(c, reasonById.get(c.id) ?? "quality_fallback"),
+  );
 
-  const items: FeedItem[] = hydrated.map((c) => ({
-    id: c.id,
-    title: c.title,
-    url: c.url,
-    slug: c.slug,
-    iconUrl: c.iconUrl,
-    screenshotUrl: c.screenshotUrl,
-    themeColor: c.themeColor,
-    author: c.author,
-    categoryId: c.categoryId,
-    category: c.category ? { id: c.category.id, name: c.category.name, slug: c.category.slug } : null,
-    avgRating: c.averageRating?.average ?? null,
-    ratingCount: c.averageRating?.count ?? 0,
-    proxyCode: c.proxyCode,
-    reason: reasonById.get(c.id) ?? "quality_fallback",
-  }));
+  return diversityRerank(items, limit);
+}
 
+/**
+ * Fallback feed once everything's been seen: top creations by quality score,
+ * ignoring the seen set so the feed never dead-ends. Quality-only (no CF), but
+ * that's fine — it's the "you've reached the end, here's the best again" loop.
+ */
+async function getRecycledFeed(
+  admin: ReturnType<typeof createAdminClient>,
+  limit: number,
+): Promise<FeedItem[]> {
+  const { data, error } = await admin
+    .from("creation_quality_scores")
+    .select("id")
+    .order("qscore", { ascending: false })
+    .limit(limit * 3);
+  if (error) {
+    console.error("[feed] recycle error:", error.message);
+    return [];
+  }
+  const ids = (data || []).map((r) => r.id as string);
+  const hydrated = await hydrateCreationsByIds(ids);
+  const items = hydrated
+    .filter((c) => !STORE_URL_RE.test(c.url))
+    .map((c) => toFeedItem(c, "recycled"));
   return diversityRerank(items, limit);
 }
