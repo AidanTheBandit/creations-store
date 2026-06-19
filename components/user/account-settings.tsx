@@ -1563,9 +1563,11 @@ function StoreApiSection() {
             public repo export (rabbit.tech schema, no auth)
           </li>
           <li>
-            <code className="font-mono">GET /api/v1/rabbithole/:resource</code>{" "}
-            — your rabbit hole data (needs <code>rabbithole</code> scope +
-            connected token)
+            <code className="font-mono">
+              GET/POST /api/v1/rabbithole/:resource
+            </code>{" "}
+            — read/update your rabbit hole data (needs <code>rabbithole</code>{" "}
+            scope + connected token)
           </li>
         </ul>
         <pre className="mt-2 overflow-x-auto rounded-md border bg-background p-3 text-[11px] font-mono">
@@ -1895,15 +1897,25 @@ const ENDPOINT_GROUPS: EndpointGroup[] = [
   {
     title: "Rabbit Hole API (experiment)",
     blurb:
-      "Read your own rabbit hole data through Boondit. Enable the Rabbit Hole experiment and save your appSession token under Settings → Experiments first. Authenticate with a Store key that has the rabbithole scope. resource ∈ profile | journal | sessions | device.",
+      "Read and update your own rabbit hole data through Boondit. Enable the Rabbit Hole experiment and save your appSession token under Settings → Experiments first. Authenticate with a Store key that has the rabbithole scope. GET = read resources, POST = write resources. All responses are { data: <upstream payload> }.",
     endpoints: [
       {
         method: "GET",
         path: "/api/v1/rabbithole/{resource}",
         description:
-          "Fetch your rabbit hole data. profile (account), journal, sessions (add ?days=N, default 7), device (device state). Returns { data: <upstream payload> }.",
-        curl: `curl "${API_BASE_URL}/api/v1/rabbithole/sessions?days=7" \\
+          "Read resources: profile, journal, sessions (add ?nDays=N&maxResults=N, default 7/1000), device, voice-slots, voice-prompt.",
+        curl: `curl "${API_BASE_URL}/api/v1/rabbithole/sessions?nDays=7" \\
   -H "Authorization: Bearer boondit_sk_..."`,
+      },
+      {
+        method: "POST",
+        path: "/api/v1/rabbithole/{resource}",
+        description:
+          "Write resources: update-profile (body { profile }), genui-enrolled / voice-enrolled (body { enrolled: bool }), magic-gallery (body { enabled: bool }), genui-prompt / voice-set-prompt (body { customPrompt }).",
+        curl: `curl -X POST ${API_BASE_URL}/api/v1/rabbithole/genui-prompt \\
+  -H "Authorization: Bearer boondit_sk_..." \\
+  -H "Content-Type: application/json" \\
+  -d '{"customPrompt":"Generate an anime-themed UI."}'`,
       },
     ],
   },
