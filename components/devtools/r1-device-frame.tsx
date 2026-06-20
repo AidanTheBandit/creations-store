@@ -24,7 +24,7 @@ export const R1DeviceFrame = forwardRef<HTMLIFrameElement, Props>(
           className="relative"
         >
           <div
-            className="overflow-hidden rounded-[28px] border-[6px] border-neutral-800 bg-black shadow-xl"
+            className="overflow-hidden border-[6px] border-neutral-800 bg-black shadow-xl"
             style={{
               width: SCREEN_W,
               height: SCREEN_H,
