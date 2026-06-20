@@ -36,6 +36,9 @@ export type Creation = {
   proxyCode: string | null;
   isFlagged: boolean;
   flagReason: string | null;
+  hostingType: "external" | "static";
+  staticFileCount: number | null;
+  staticSizeBytes: number | null;
 };
 
 export type Category = {
@@ -114,6 +117,9 @@ function mapCreation(row: any): Creation {
     proxyCode: row.proxy_code,
     isFlagged: row.is_flagged,
     flagReason: row.flag_reason,
+    hostingType: row.hosting_type === "static" ? "static" : "external",
+    staticFileCount: row.static_file_count ?? null,
+    staticSizeBytes: row.static_size_bytes ?? null,
   };
 }
 
@@ -507,11 +513,18 @@ export interface AdminUserRow {
 // Admin user list including suspension state (getAllUsers omits is_suspended).
 export async function getAdminUsers(): Promise<AdminUserRow[]> {
   const supabase = db();
-  const { data: allUsers } = await supabase
+  const { data: allUsers, error } = await supabase
     .from("users")
     .select("id, username, avatar_url, created_at, is_verified, is_suspended")
     .order("created_at", { ascending: false });
-  if (!allUsers) return [];
+  if (error) {
+    console.error("[data] getAdminUsers query failed:", error.message);
+    return [];
+  }
+  if (!allUsers || allUsers.length === 0) {
+    console.warn("[data] getAdminUsers: public.users returned no rows");
+    return [];
+  }
 
   const { data: allCreations } = await supabase
     .from("store_creations")

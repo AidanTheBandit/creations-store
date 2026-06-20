@@ -51,7 +51,10 @@ export function Experience({
     setBookmarked(false);
     setInteracting(false); // every new creation starts in navigation mode
     setWarmFar(false); // hold the far frames until the swipe animation settles
-    markSeen([current.id]);
+    // Synthetic ids (e.g. "rabbit:<hash>" from the Rabbit Creations Repo
+    // experiment) aren't real store_creations rows — skip seen/view tracking.
+    const isStoreCreation = !current.id.includes(":");
+    if (isStoreCreation) markSeen([current.id]);
     maybePrefetch(idx);
 
     // Warm the ±2 frames a beat after the 260ms slide animation finishes.
@@ -59,11 +62,13 @@ export function Experience({
 
     // Contribute to the creation's analytics (published-gated + deduped on the
     // server, so this won't inflate views on drafts or repeat opens).
-    void fetch("/api/creation/view", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({ creationId: current.id }),
-    }).catch(() => {});
+    if (isStoreCreation) {
+      void fetch("/api/creation/view", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ creationId: current.id }),
+      }).catch(() => {});
+    }
 
     return () => clearTimeout(warm);
   }, [current, idx, markSeen, maybePrefetch]);
@@ -78,6 +83,11 @@ export function Experience({
     if (!current) return;
     if (!linked) {
       showToast("Link your account to save");
+      return;
+    }
+    // Repo items (synthetic ids) aren't store creations and can't be saved.
+    if (current.id.includes(":")) {
+      showToast("Can't save repo items");
       return;
     }
     const next = !bookmarked;

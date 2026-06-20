@@ -22,6 +22,12 @@ export async function POST(req: NextRequest) {
   if (!creationId) {
     return apiError("invalid_body", "creationId is required.", 422);
   }
+  // Synthetic ids from external repos (e.g. the Rabbit Creations Repo experiment,
+  // "rabbit:<hash>") aren't real store_creations rows — skip analytics so we
+  // don't hit a uuid-cast error in recordDetailClick.
+  if (creationId.includes(":")) {
+    return json({ ok: true, skipped: "external" });
+  }
 
   const h = await headers();
   const fwd = h.get("x-forwarded-for");

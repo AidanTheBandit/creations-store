@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, Eye, EyeOff, Trash2, Pencil } from "lucide-react";
+import { Plus, Loader2, Eye, EyeOff, Trash2, Pencil, Server } from "lucide-react";
 import {
   createCreation,
   updateCreation,
@@ -35,6 +35,7 @@ interface Creation {
   categoryId: string | null;
   status: "draft" | "published";
   themeColor: string | null;
+  hostingType?: "external" | "static";
   isFavorite: boolean;
   isArchived: boolean;
 }
@@ -181,6 +182,12 @@ export function UserCreationManager({
                     ) : (
                       <span className="text-xs text-muted-foreground">
                         Uncategorized
+                      </span>
+                    )}
+                    {creation.hostingType === "static" && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                        <Server className="h-3 w-3" />
+                        Hosted
                       </span>
                     )}
                   </div>

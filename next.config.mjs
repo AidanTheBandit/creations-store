@@ -146,6 +146,13 @@ const devtoolsHeaders = [
   },
 ];
 
+// /c/<slug>/... serves user-hosted static creations. The route handler sets the
+// locked-down hosted CSP per-response (sandbox without allow-same-origin), so we
+// do NOT set CSP here (avoids a conflicting second policy). Critically we must
+// NOT send X-Frame-Options: DENY — hosted creations are framed by the R1
+// experience and the devtools emulator. Keep HSTS/nosniff/referrer baseline.
+const hostedHeaders = [...baseHeaders];
+
 const creationHeaders = [
   ...baseHeaders,
   { key: "Content-Security-Policy", value: CREATION_CSP },
@@ -170,10 +177,14 @@ const nextConfig = {
   async headers() {
     return [
       {
-        // Everything except the R1 device surfaces and devtools gets the strict
-        // policy.
-        source: "/((?!r1a_client|creation|devtools).*)",
+        // Everything except the R1 device surfaces, devtools, and hosted static
+        // creations (/c) gets the strict policy.
+        source: "/((?!r1a_client|creation|devtools|c/).*)",
         headers: siteHeaders,
+      },
+      {
+        source: "/c/:path*",
+        headers: hostedHeaders,
       },
       {
         source: "/r1a_client/:path*",

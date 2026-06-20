@@ -39,6 +39,8 @@ interface Creation {
   screenshotUrl: string | null;
   categoryId: string | null;
   status: "draft" | "published";
+  hostingType?: "external" | "static";
+  staticFileCount?: number | null;
 }
 
 // Subset of fields an external generator can hand us to prefill the form.
@@ -95,6 +97,79 @@ export function CreationForm({
   const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
   const [uploadingCount, setUploadingCount] = useState(0);
   const [isUploadingIcon, setIsUploadingIcon] = useState(false);
+
+  // ── Static hosting (host a zip bundle on the Boondit CDN) ──
+  const [hostingType, setHostingType] = useState<"external" | "static">(
+    creation?.hostingType || "external",
+  );
+  const [hostedUrl, setHostedUrl] = useState<string | null>(
+    creation?.hostingType === "static" ? creation.url : null,
+  );
+  const [hostedFileCount, setHostedFileCount] = useState<number | null>(
+    creation?.staticFileCount ?? null,
+  );
+  const [isUploadingBundle, setIsUploadingBundle] = useState(false);
+
+  // Upload a zip bundle for this creation (edit mode only — needs an id).
+  const handleBundleUpload = async (file: File) => {
+    if (!creation?.id) {
+      toast.error("Save the creation first, then upload a bundle.");
+      return;
+    }
+    if (!/\.zip$/i.test(file.name)) {
+      toast.error("Please select a .zip file");
+      return;
+    }
+    setIsUploadingBundle(true);
+    try {
+      const fd = new FormData();
+      fd.append("bundle", file);
+      const res = await fetch(`/api/creation/${creation.id}/host`, {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(`Upload failed: ${data.error || res.status}`);
+        return;
+      }
+      setHostingType("static");
+      setHostedUrl(data.url);
+      setHostedFileCount(data.fileCount);
+      setFormData((prev) => ({ ...prev, url: data.url }));
+      toast.success(`Hosted ${data.fileCount} files on Boondit`);
+    } catch (e) {
+      console.error("Bundle upload error:", e);
+      toast.error("Failed to upload bundle");
+    } finally {
+      setIsUploadingBundle(false);
+    }
+  };
+
+  // Revert to an external URL (clears the hosted bundle).
+  const handleUnhost = async () => {
+    if (!creation?.id) {
+      setHostingType("external");
+      return;
+    }
+    if (!confirm("Remove the hosted files and switch back to an external URL?")) return;
+    setIsUploadingBundle(true);
+    try {
+      const res = await fetch(`/api/creation/${creation.id}/host`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.error("Failed to remove hosted files");
+        return;
+      }
+      setHostingType("external");
+      setHostedUrl(null);
+      setHostedFileCount(null);
+      toast.success("Reverted to external URL");
+    } catch {
+      toast.error("Failed to remove hosted files");
+    } finally {
+      setIsUploadingBundle(false);
+    }
+  };
 
   // Prefill only applies to create mode (edit always wins from `creation`).
   const init = mode === "create" ? initialValues : undefined;
@@ -480,18 +555,132 @@ export function CreationForm({
         <h3 className="text-lg font-semibold">Basic Information</h3>
 
         <div className="grid grid-cols-1 gap-4">
+          {/* Hosting choice: external URL vs host a static bundle on Boondit */}
           <div className="space-y-2">
-            <Label htmlFor="url">URL *</Label>
-            <Input
-              id="url"
-              name="url"
-              type="url"
-              required
-              value={formData.url}
-              onChange={handleUrlChange}
-              placeholder="https://barkle.chat"
-            />
+            <Label>Hosting</Label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setHostingType("external")}
+                className={cn(
+                  "flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors",
+                  hostingType === "external"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:bg-card",
+                )}
+              >
+                External URL
+              </button>
+              <button
+                type="button"
+                onClick={() => setHostingType("static")}
+                className={cn(
+                  "flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors",
+                  hostingType === "static"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:bg-card",
+                )}
+              >
+                Host on Boondit
+              </button>
+            </div>
           </div>
+
+          {hostingType === "external" ? (
+            <div className="space-y-2">
+              <Label htmlFor="url">URL *</Label>
+              <Input
+                id="url"
+                name="url"
+                type="url"
+                required
+                value={formData.url}
+                onChange={handleUrlChange}
+                placeholder="https://barkle.chat"
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Static bundle (.zip)</Label>
+              {/* Keep a valid url submitted even before a bundle exists: the
+                  predicted /c/<slug>/ URL. The host-upload route overwrites it
+                  authoritatively once files are uploaded. */}
+              <input
+                type="hidden"
+                name="url"
+                value={
+                  hostedUrl ||
+                  `https://creations.boondit.site/c/${formData.slug || "draft"}/`
+                }
+              />
+              {mode === "create" ? (
+                <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                  Save this creation as a draft first, then upload your bundle from
+                  the edit screen.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {hostedUrl && (
+                    <div className="flex items-center justify-between rounded-md border bg-card px-3 py-2 text-sm">
+                      <span className="truncate">
+                        <span className="text-muted-foreground">Live at </span>
+                        <a
+                          href={hostedUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-primary hover:underline"
+                        >
+                          {hostedUrl}
+                        </a>
+                        {hostedFileCount != null && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            ({hostedFileCount} files)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  <label
+                    className={cn(
+                      "flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed px-3 py-4 text-sm transition-colors hover:bg-card",
+                      isUploadingBundle && "pointer-events-none opacity-60",
+                    )}
+                  >
+                    {isUploadingBundle ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    {hostedUrl ? "Replace bundle (.zip)" : "Upload bundle (.zip)"}
+                    <input
+                      type="file"
+                      accept=".zip,application/zip"
+                      className="hidden"
+                      disabled={isUploadingBundle}
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) handleBundleUpload(e.target.files[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Zip your site with <span className="font-mono">index.html</span> at
+                    the root. Max 25&nbsp;MB. Served securely from the Boondit CDN.
+                  </p>
+                  {hostedUrl && (
+                    <button
+                      type="button"
+                      onClick={handleUnhost}
+                      disabled={isUploadingBundle}
+                      className="text-xs text-red-400 hover:underline"
+                    >
+                      Switch back to an external URL
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="title">Title *</Label>
