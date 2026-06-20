@@ -23,6 +23,7 @@ import { VerifiedBadge } from "@/components/verified-badge";
 // Metadata
 import { Metadata, ResolvingMetadata } from "next";
 import Markdown from "react-markdown";
+import { markdownComponents } from "@/lib/markdown";
 import { getCurrentUser } from "@/lib/auth";
 import { directory } from "@/directory.config";
 
@@ -305,45 +306,7 @@ export default async function Page({ params }: Props) {
             <h2 className="text-2xl font-bold tracking-tight">About</h2>
             {bookmark.overview ? (
               <div className="prose prose-gray max-w-none dark:prose-invert">
-                <Markdown
-                  components={{
-                    p: ({ children }) => (
-                      <p className="my-4 leading-relaxed text-muted-foreground">
-                        {children}
-                      </p>
-                    ),
-                    a: ({ children, href }) => (
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium text-primary underline underline-offset-4"
-                      >
-                        {children}
-                      </a>
-                    ),
-                    h2: ({ children }) => (
-                      <h2 className="mt-8 text-xl font-semibold text-foreground">
-                        {children}
-                      </h2>
-                    ),
-                    h3: ({ children }) => (
-                      <h3 className="mt-6 text-lg font-semibold text-foreground">
-                        {children}
-                      </h3>
-                    ),
-                    ul: ({ children }) => (
-                      <ul className="my-4 ml-6 list-disc text-muted-foreground">
-                        {children}
-                      </ul>
-                    ),
-                    ol: ({ children }) => (
-                      <ol className="my-4 ml-6 list-decimal text-muted-foreground">
-                        {children}
-                      </ol>
-                    ),
-                  }}
-                >
+                <Markdown components={markdownComponents}>
                   {bookmark.overview}
                 </Markdown>
               </div>

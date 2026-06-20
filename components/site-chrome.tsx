@@ -66,6 +66,12 @@ function Header({ user }: { user: ChromeUser }) {
 
         <nav className="flex items-center gap-1 text-sm">
           <Link
+            href="/devtools"
+            className="rounded-md px-3 py-2 text-sm font-medium text-foreground transition-opacity hover:bg-card hover:opacity-80"
+          >
+            Dev tools
+          </Link>
+          <Link
             href="https://buymeacoffee.com/boondit"
             target="_blank"
             rel="noopener noreferrer"

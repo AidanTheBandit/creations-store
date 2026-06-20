@@ -69,6 +69,27 @@ const CREATION_CSP = [
   `connect-src 'self' ${SUPABASE_ORIGIN} ${SUPABASE_WSS_ORIGIN} https://cdn.boondit.site https://*.linodeobjects.com https://cloudflareinsights.com`,
 ].join("; ");
 
+// /devtools hosts the R1 emulator, which embeds an arbitrary creation URL in an
+// iframe to test it at the real device size. Like /creation it needs frame-src +
+// img/media https: and camera/mic delegation for framed creations. Unlike the R1
+// device surfaces, the devtools page itself is NOT embedded, so frame-ancestors
+// stays 'none' and X-Frame-Options: DENY is kept (via siteHeaders' bookends below
+// we instead add it explicitly here).
+const DEVTOOLS_CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  "object-src 'none'",
+  "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' blob: https:",
+  "font-src 'self' data:",
+  "frame-src https:",
+  `connect-src 'self' ${SUPABASE_ORIGIN} ${SUPABASE_WSS_ORIGIN} https://cdn.boondit.site https://*.linodeobjects.com https://cloudflareinsights.com`,
+].join("; ");
+
 const baseHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -101,6 +122,20 @@ const r1aHeaders = [
   },
 ];
 
+// /devtools keeps the strict frame-ancestors/X-Frame-Options of the site (it is
+// not meant to be embedded) but loosens frame-src so the emulator can host any
+// https creation, and delegates camera/mic to framed creations that need them.
+const devtoolsHeaders = [
+  ...baseHeaders,
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Content-Security-Policy", value: DEVTOOLS_CSP },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=*, microphone=*, geolocation=()",
+  },
+];
+
 const creationHeaders = [
   ...baseHeaders,
   { key: "Content-Security-Policy", value: CREATION_CSP },
@@ -125,8 +160,9 @@ const nextConfig = {
   async headers() {
     return [
       {
-        // Everything except the two R1 device surfaces gets the strict policy.
-        source: "/((?!r1a_client|creation).*)",
+        // Everything except the R1 device surfaces and devtools gets the strict
+        // policy.
+        source: "/((?!r1a_client|creation|devtools).*)",
         headers: siteHeaders,
       },
       {
@@ -136,6 +172,14 @@ const nextConfig = {
       {
         source: "/creation/:path*",
         headers: creationHeaders,
+      },
+      {
+        source: "/devtools/:path*",
+        headers: devtoolsHeaders,
+      },
+      {
+        source: "/devtools",
+        headers: devtoolsHeaders,
       },
     ];
   },
