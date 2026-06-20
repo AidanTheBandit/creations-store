@@ -90,6 +90,53 @@ The R1 is a low-power device (MediaTek MT6765, 4 GB RAM — see the **Hardware**
 - Keep bundles small and lazy-load anything heavy.
 - Cache aggressively; the network and CPU are both limited.
 
+## Using the Emulator (and getting past "blocked" creations)
+
+The **Emulator** tab loads your creation in an iframe at the exact device size and lets you fire hardware events at it. Two things can stop a creation from working in the emulator — here's how to get past each.
+
+### 1. The frame is blank — the site refuses to be embedded
+
+The emulator loads your creation in an `<iframe>`. If your creation's server sends `X-Frame-Options: DENY`/`SAMEORIGIN` or a CSP `frame-ancestors` directive that excludes this origin, the browser **refuses to render it** and you get a blank screen. Fixes:
+
+- **Allow framing from the store.** Remove `X-Frame-Options` (or set it to allow this origin) and set a CSP that permits it, e.g. `Content-Security-Policy: frame-ancestors https://creations.boondit.site;`. This is the cleanest fix and is safe — your creation already runs inside the R1's WebView, which frames it too.
+- **Test against a deploy preview / localhost.** Point the emulator at a build whose headers you control (a Vercel/Netlify preview, or `http://localhost:<port>` while developing). Same-origin localhost also unlocks direct device-API injection (see below).
+- **Static hosts** (GitHub Pages, most CDNs) don't send `X-Frame-Options` by default, so they frame fine.
+
+### 2. The screen renders, but hardware/LLM events don't reach it
+
+Browser security stops the emulator from injecting the SDK globals into a **cross-origin** page. When your creation is served from another origin, the screen size is accurate but the scroll wheel, side button, and `onPluginMessage` won't fire — unless your creation opts in to the bridge.
+
+**Bypass: import the emulator bridge shim.** Add this once, early in your creation (it's a no-op on a real device and outside the emulator), and the emulator can drive your creation fully even cross-origin:
+
+```js
+// r1-emulator-bridge.js — enables full device-API simulation in the Boondit emulator
+(function () {
+  if (window.parent === window) return; // only inside an emulator iframe
+  var EVENTS = ["scrollUp", "scrollDown", "sideClick", "longPressStart", "longPressEnd"];
+  window.addEventListener("message", function (e) {
+    var d = e.data;
+    if (!d || d.__r1emu !== true) return;
+    if (d.type === "event" && EVENTS.indexOf(d.event) !== -1) {
+      window.dispatchEvent(new CustomEvent(d.event, { detail: d.detail }));
+    } else if (d.type === "pluginMessage" && typeof window.onPluginMessage === "function") {
+      window.onPluginMessage(d.payload);
+    }
+  });
+  function relay(name) {
+    return { postMessage: function (msg) {
+      window.parent.postMessage({ __r1emu: true, type: "outbound", channel: name, msg: msg }, "*");
+    } };
+  }
+  window.PluginMessageHandler = relay("PluginMessageHandler");
+  window.CreationVoiceHandler = relay("CreationVoiceHandler");
+  window.closeWebView = relay("closeWebView");
+})();
+```
+
+With the shim in place, the emulator relays its control-panel events (scroll, side button, PTT, mock LLM responses) to your creation, and your creation's outbound `PluginMessageHandler` / voice calls show up in the emulator console. Same-origin creations (localhost during dev, or anything served from this store) don't need the shim — the emulator injects the globals directly.
+
+> The full shim is always available in the **Copy for AI** blob and at [`/devtools/llms.txt`](/devtools/llms.txt).
+
 ## Next steps
 
 Open the **Emulator** tab to load your creation URL at 240 × 282 and dispatch scroll / side-button events at it. If you build with an AI coding assistant, use the **Copy for AI** button or fetch [`/devtools/llms.txt`](/devtools/llms.txt) to give it everything on this page as context.

@@ -69,6 +69,16 @@ const CREATION_CSP = [
   `connect-src 'self' ${SUPABASE_ORIGIN} ${SUPABASE_WSS_ORIGIN} https://cdn.boondit.site https://*.linodeobjects.com https://cloudflareinsights.com`,
 ].join("; ");
 
+const IS_DEV = process.env.NODE_ENV !== "production";
+
+// Next's dev hot-reload (react-refresh) evaluates strings as JS, which needs
+// 'unsafe-eval'. Grant it in development only so production CSP stays strict.
+const DEV_EVAL = IS_DEV ? " 'unsafe-eval'" : "";
+
+// In dev the emulator tests creations served over http://localhost; production
+// only ever frames https creations. Allow http framing in development only.
+const DEVTOOLS_FRAME_SRC = IS_DEV ? "frame-src https: http:" : "frame-src https:";
+
 // /devtools hosts the R1 emulator, which embeds an arbitrary creation URL in an
 // iframe to test it at the real device size. Like /creation it needs frame-src +
 // img/media https: and camera/mic delegation for framed creations. Unlike the R1
@@ -81,12 +91,12 @@ const DEVTOOLS_CSP = [
   "form-action 'self'",
   "frame-ancestors 'none'",
   "object-src 'none'",
-  "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+  `script-src 'self' 'unsafe-inline'${DEV_EVAL} https://static.cloudflareinsights.com`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "media-src 'self' blob: https:",
   "font-src 'self' data:",
-  "frame-src https:",
+  DEVTOOLS_FRAME_SRC,
   `connect-src 'self' ${SUPABASE_ORIGIN} ${SUPABASE_WSS_ORIGIN} https://cdn.boondit.site https://*.linodeobjects.com https://cloudflareinsights.com`,
 ].join("; ");
 

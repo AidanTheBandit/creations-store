@@ -32,18 +32,24 @@ export function DevToolsTabs({
 
   return (
     <Tabs value={active} onValueChange={onChange} className="w-full">
-      <TabsList>
-        <TabsTrigger value="wiki">R1A Wiki</TabsTrigger>
-        <TabsTrigger value="emulator">Emulator</TabsTrigger>
-        <TabsTrigger value="hardware">Hardware</TabsTrigger>
+      <TabsList className="h-auto w-full max-w-md gap-1 p-1">
+        <TabsTrigger value="wiki" className="flex-1 py-1.5">
+          Wiki
+        </TabsTrigger>
+        <TabsTrigger value="emulator" className="flex-1 py-1.5">
+          Emulator
+        </TabsTrigger>
+        <TabsTrigger value="hardware" className="flex-1 py-1.5">
+          Hardware
+        </TabsTrigger>
       </TabsList>
-      <TabsContent value="wiki" className="mt-6">
+      <TabsContent value="wiki" className="mt-8">
         {wiki}
       </TabsContent>
-      <TabsContent value="emulator" className="mt-6">
+      <TabsContent value="emulator" className="mt-8">
         <R1Emulator />
       </TabsContent>
-      <TabsContent value="hardware" className="mt-6">
+      <TabsContent value="hardware" className="mt-8">
         {hardware}
       </TabsContent>
     </Tabs>

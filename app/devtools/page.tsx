@@ -8,7 +8,7 @@ import { HardwareReference } from "@/components/devtools/hardware-reference";
 export const metadata: Metadata = {
   title: "Dev Tools",
   description:
-    "Build R1 creations: the R1A wiki, an R1 emulator that simulates the 240×282 screen and device APIs, and a hardware reference.",
+    "Build R1 creations: a wiki, an R1 emulator that simulates the 240×282 screen and device APIs, and a hardware reference.",
 };
 
 export default async function DevToolsPage() {
@@ -16,8 +16,11 @@ export default async function DevToolsPage() {
     <Section>
       <Container>
         <div className="mb-8">
-          <h1 className="text-4xl font-bold tracking-tight">Dev Tools</h1>
-          <p className="mt-2 text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+            For creators
+          </p>
+          <h1 className="mt-2 text-4xl font-bold tracking-tight">Dev Tools</h1>
+          <p className="mt-3 max-w-2xl text-muted-foreground">
             Everything you need to build an R1 creation — the wiki, an emulator
             that runs your creation at the real device size, and a hardware
             reference.
@@ -25,10 +28,7 @@ export default async function DevToolsPage() {
         </div>
 
         <Suspense fallback={null}>
-          <DevToolsTabs
-            wiki={<Wiki />}
-            hardware={<HardwareReference />}
-          />
+          <DevToolsTabs wiki={<Wiki />} hardware={<HardwareReference />} />
         </Suspense>
       </Container>
     </Section>

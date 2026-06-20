@@ -9,6 +9,10 @@ import {
   Send,
   Trash2,
   AlertTriangle,
+  Globe,
+  Terminal,
+  Gamepad2,
+  MessageSquareCode,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +31,34 @@ type HwEvent =
 const ZOOMS = [1, 1.5, 2];
 
 type LogEntry = { dir: "out" | "in" | "sys"; text: string; t: string };
+
+// A labelled control panel that matches the site's card vocabulary.
+function Panel({
+  icon: Icon,
+  title,
+  action,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card shadow">
+      <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <Icon className="h-4 w-4 text-primary" />
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {title}
+          </h3>
+        </div>
+        {action}
+      </div>
+      <div className="p-4">{children}</div>
+    </div>
+  );
+}
 
 export function R1Emulator() {
   const [urlInput, setUrlInput] = useState("");
@@ -131,9 +163,11 @@ export function R1Emulator() {
       );
     } else {
       try {
-        const fn = (iframe.contentWindow as unknown as {
-          onPluginMessage?: (d: unknown) => void;
-        }).onPluginMessage;
+        const fn = (
+          iframe.contentWindow as unknown as {
+            onPluginMessage?: (d: unknown) => void;
+          }
+        ).onPluginMessage;
         if (typeof fn === "function") fn(payload);
         else appendLog("sys", "Creation has no window.onPluginMessage handler.");
       } catch {
@@ -143,146 +177,179 @@ export function R1Emulator() {
     appendLog("in", `onPluginMessage: ${mockResponse}`);
   };
 
+  const loaded = Boolean(src);
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[auto,1fr]">
-      {/* Left: device frame + URL bar */}
-      <div className="space-y-4">
-        <div className="flex gap-2">
-          <Input
-            type="url"
-            inputMode="url"
-            placeholder="https://your-creation.example.com"
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && loadUrl()}
-            aria-label="Creation URL"
-          />
-          <Button onClick={loadUrl}>Load</Button>
-        </div>
-
-        <R1DeviceFrame
-          ref={iframeRef}
-          src={src}
-          zoom={zoom}
-          onLoad={handleFrameLoad}
-        />
-
-        <div className="flex items-center justify-center gap-1">
-          <span className="mr-1 text-xs text-muted-foreground">Zoom</span>
-          {ZOOMS.map((z) => (
-            <Button
-              key={z}
-              size="sm"
-              variant={zoom === z ? "secondary" : "ghost"}
-              onClick={() => setZoom(z)}
-            >
-              {z}×
-            </Button>
-          ))}
+    <div className="space-y-6">
+      {/* URL bar spans the full width — it's the entry point for everything. */}
+      <div className="rounded-xl border border-border bg-card p-3 shadow">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="url"
+              inputMode="url"
+              placeholder="https://your-creation.example.com"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && loadUrl()}
+              aria-label="Creation URL"
+              className="pl-9"
+            />
+          </div>
+          <Button onClick={loadUrl} className="sm:w-auto">
+            Load creation
+          </Button>
         </div>
       </div>
 
-      {/* Right: controls + console */}
-      <div className="space-y-4">
-        {crossOrigin && (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Cross-origin creation</AlertTitle>
-            <AlertDescription>
-              The screen size is accurate, but device APIs can only be injected
-              into same-origin creations or those that import the emulator bridge
-              shim (see the Wiki tab). If the frame is blank, the site may forbid
-              embedding (X-Frame-Options).
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Hardware
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => sendEvent("scrollUp")}>
-              <ChevronUp className="mr-1 h-4 w-4" /> Scroll up
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => sendEvent("scrollDown")}
-            >
-              <ChevronDown className="mr-1 h-4 w-4" /> Scroll down
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => sendEvent("sideClick")}
-            >
-              <CircleDot className="mr-1 h-4 w-4" /> Side click
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onMouseDown={() => sendEvent("longPressStart")}
-              onMouseUp={() => sendEvent("longPressEnd")}
-              onMouseLeave={() => sendEvent("longPressEnd")}
-            >
-              <Mic className="mr-1 h-4 w-4" /> PTT (hold)
-            </Button>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Mock LLM response
-          </p>
-          <Textarea
-            value={mockResponse}
-            onChange={(e) => setMockResponse(e.target.value)}
-            rows={3}
-            className="font-mono text-xs"
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,auto),1fr]">
+        {/* Left: device frame in its own card */}
+        <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-card p-6 shadow">
+          <R1DeviceFrame
+            ref={iframeRef}
+            src={src}
+            zoom={zoom}
+            onLoad={handleFrameLoad}
           />
-          <Button variant="outline" size="sm" onClick={injectResponse}>
-            <Send className="mr-1 h-4 w-4" /> Inject onPluginMessage
-          </Button>
+          <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+            <span className="px-2 text-xs text-muted-foreground">Zoom</span>
+            {ZOOMS.map((z) => (
+              <Button
+                key={z}
+                size="sm"
+                variant={zoom === z ? "secondary" : "ghost"}
+                className="h-7 px-3"
+                onClick={() => setZoom(z)}
+              >
+                {z}×
+              </Button>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Console
-            </p>
-            <Button variant="ghost" size="sm" onClick={() => setLogs([])}>
-              <Trash2 className="mr-1 h-4 w-4" /> Clear
+        {/* Right: stacked control panels */}
+        <div className="space-y-4">
+          {crossOrigin && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Cross-origin creation</AlertTitle>
+              <AlertDescription>
+                The screen size is accurate, but device APIs reach the creation
+                only if it imports the emulator bridge shim (see the{" "}
+                <a
+                  href="/devtools"
+                  className="font-medium text-primary underline underline-offset-4"
+                >
+                  Wiki
+                </a>
+                ). If the frame is blank, the site may forbid embedding
+                (X-Frame-Options).
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <Panel icon={Gamepad2} title="Hardware">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!loaded}
+                onClick={() => sendEvent("scrollUp")}
+              >
+                <ChevronUp className="mr-1 h-4 w-4" /> Scroll up
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!loaded}
+                onClick={() => sendEvent("scrollDown")}
+              >
+                <ChevronDown className="mr-1 h-4 w-4" /> Scroll down
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!loaded}
+                onClick={() => sendEvent("sideClick")}
+              >
+                <CircleDot className="mr-1 h-4 w-4" /> Side click
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!loaded}
+                onMouseDown={() => sendEvent("longPressStart")}
+                onMouseUp={() => sendEvent("longPressEnd")}
+                onMouseLeave={() => sendEvent("longPressEnd")}
+              >
+                <Mic className="mr-1 h-4 w-4" /> PTT (hold)
+              </Button>
+            </div>
+          </Panel>
+
+          <Panel icon={MessageSquareCode} title="Mock LLM response">
+            <Textarea
+              value={mockResponse}
+              onChange={(e) => setMockResponse(e.target.value)}
+              rows={3}
+              className="mb-3 resize-none font-mono text-xs"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!loaded}
+              onClick={injectResponse}
+            >
+              <Send className="mr-1 h-4 w-4" /> Inject onPluginMessage
             </Button>
-          </div>
-          <div
-            ref={logRef}
-            className="h-48 overflow-y-auto rounded-md border bg-muted/25 p-3 font-mono text-xs"
+          </Panel>
+
+          <Panel
+            icon={Terminal}
+            title="Console"
+            action={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7"
+                onClick={() => setLogs([])}
+              >
+                <Trash2 className="mr-1 h-3.5 w-3.5" /> Clear
+              </Button>
+            }
           >
-            {logs.length === 0 ? (
-              <p className="text-muted-foreground">
-                Load a creation, then fire events or inject a response.
-              </p>
-            ) : (
-              logs.map((l, i) => (
-                <div key={i} className="flex gap-2">
-                  <span className="text-muted-foreground/60">{l.t}</span>
-                  <span
-                    className={
-                      l.dir === "out"
-                        ? "text-primary"
-                        : l.dir === "in"
-                          ? "text-emerald-500"
-                          : "text-muted-foreground"
-                    }
-                  >
-                    {l.dir === "out" ? "↑" : l.dir === "in" ? "↓" : "•"}
-                  </span>
-                  <span className="break-all">{l.text}</span>
-                </div>
-              ))
-            )}
-          </div>
+            <div
+              ref={logRef}
+              className="h-52 overflow-y-auto rounded-lg bg-background/60 p-3 font-mono text-xs"
+            >
+              {logs.length === 0 ? (
+                <p className="text-muted-foreground">
+                  Load a creation, then fire events or inject a response.
+                </p>
+              ) : (
+                logs.map((l, i) => (
+                  <div key={i} className="flex gap-2 py-0.5">
+                    <span className="shrink-0 text-muted-foreground/60">
+                      {l.t}
+                    </span>
+                    <span
+                      className={
+                        l.dir === "out"
+                          ? "shrink-0 text-primary"
+                          : l.dir === "in"
+                            ? "shrink-0 text-emerald-500"
+                            : "shrink-0 text-muted-foreground"
+                      }
+                    >
+                      {l.dir === "out" ? "↑" : l.dir === "in" ? "↓" : "•"}
+                    </span>
+                    <span className="break-all">{l.text}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </Panel>
         </div>
       </div>
     </div>
