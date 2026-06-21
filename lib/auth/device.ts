@@ -108,6 +108,15 @@ export async function authenticateDevice(
     .maybeSingle();
   if (!link) return null;
 
+  // Suspended users keep no access via device tokens (suspension is otherwise
+  // only enforced in getCurrentUser, i.e. the web session).
+  const { data: owner } = await admin
+    .from("users")
+    .select("is_suspended")
+    .eq("id", payload.userId)
+    .maybeSingle();
+  if (owner?.is_suspended) return null;
+
   const result: DeviceAuthResult = {
     userId: payload.userId,
     deviceId: payload.deviceId,

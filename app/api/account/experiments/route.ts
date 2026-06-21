@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getExperimentFlags, setExperimentFlags } from "@/lib/experiments";
+import { sameOrigin } from "@/lib/api/csrf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +16,9 @@ export async function GET() {
 
 // Toggle the boolean experiment flags.
 export async function PATCH(req: NextRequest) {
+  if (!sameOrigin(req)) {
+    return NextResponse.json({ error: "forbidden_origin" }, { status: 403 });
+  }
   const user = await getCurrentUser();
   if (!user?.id) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 

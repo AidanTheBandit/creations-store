@@ -5,6 +5,7 @@ import {
   setRabbitHoleToken,
   clearRabbitHoleToken,
 } from "@/lib/experiments";
+import { sameOrigin } from "@/lib/api/csrf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +13,9 @@ export const dynamic = "force-dynamic";
 // Store the rabbit hole appSession token (encrypted at rest). The token is
 // accepted here, sealed immediately, and never echoed back to any client.
 export async function PUT(req: NextRequest) {
+  if (!sameOrigin(req)) {
+    return NextResponse.json({ error: "forbidden_origin" }, { status: 403 });
+  }
   const user = await getCurrentUser();
   if (!user?.id) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
@@ -39,7 +43,10 @@ export async function PUT(req: NextRequest) {
 }
 
 // Remove the stored token.
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
+  if (!sameOrigin(req)) {
+    return NextResponse.json({ error: "forbidden_origin" }, { status: 403 });
+  }
   const user = await getCurrentUser();
   if (!user?.id) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   await clearRabbitHoleToken(user.id);

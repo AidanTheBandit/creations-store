@@ -25,12 +25,25 @@ export function generateStoreApiKey(): StoreApiKeyData {
   return { keyId, plaintext, hash, preview };
 }
 
+function getPepper(): string {
+  // The pepper makes a DB dump of key hashes useless without this server-side
+  // secret. A missing/short pepper silently degrades to plain sha256(key), so
+  // fail loudly instead of shipping unpeppered hashes that still "work".
+  const pepper = process.env.PLATFORM_SIGNING_SECRET;
+  if (!pepper || pepper.length < 32) {
+    throw new Error(
+      "PLATFORM_SIGNING_SECRET missing or too short (need 32+ chars)",
+    );
+  }
+  return pepper;
+}
+
 export function hashStoreApiKey(key: string): string {
   // Peppered SHA-256 — same construction as the R1A keys so we reuse the
   // PLATFORM_SIGNING_SECRET pepper, but over a distinct prefix namespace.
   return createHash("sha256")
     .update(key)
-    .update(process.env.PLATFORM_SIGNING_SECRET || "")
+    .update(getPepper())
     .digest("hex");
 }
 
@@ -69,6 +82,15 @@ export async function verifyStoreApiKey(
   if (data.expires_at && new Date(data.expires_at).getTime() < Date.now()) {
     return null;
   }
+
+  // A suspended owner's keys stop working (suspension is otherwise only enforced
+  // in the web session via getCurrentUser).
+  const { data: owner } = await supabase
+    .from("users")
+    .select("is_suspended")
+    .eq("id", data.user_id)
+    .maybeSingle();
+  if (owner?.is_suspended) return null;
 
   // Best-effort last_used; never block the request on it.
   supabase

@@ -56,12 +56,34 @@ export async function POST(
     return NextResponse.json({ error: "zip_too_large" }, { status: 413 });
   }
 
-  // Unzip in memory.
+  // Unzip in memory. CRITICAL: cap uncompressed size via the `filter` callback,
+  // which sees each entry's declared originalSize from the zip directory BEFORE
+  // that entry is inflated. This prevents a decompression bomb (a small zip that
+  // inflates to gigabytes) from OOM-killing the worker — returning false skips
+  // inflation entirely. We also bound the running uncompressed total.
+  let declaredTotal = 0;
+  let bomb = false;
   let files: Record<string, Uint8Array>;
   try {
-    files = unzipSync(new Uint8Array(await bundle.arrayBuffer()));
+    files = unzipSync(new Uint8Array(await bundle.arrayBuffer()), {
+      filter: (file) => {
+        if (file.originalSize > HOSTING_LIMITS.maxFileBytes) {
+          bomb = true;
+          return false; // don't inflate this entry
+        }
+        declaredTotal += file.originalSize;
+        if (declaredTotal > HOSTING_LIMITS.maxTotalBytes) {
+          bomb = true;
+          return false;
+        }
+        return true;
+      },
+    });
   } catch {
     return NextResponse.json({ error: "invalid_zip" }, { status: 400 });
+  }
+  if (bomb) {
+    return NextResponse.json({ error: "bundle_too_large" }, { status: 413 });
   }
 
   // Validate + normalize entries. Skip directory entries (zero-length, trailing /).
@@ -116,14 +138,20 @@ export async function POST(
 
   const prefix = staticKeyPrefix(creation.id);
 
-  // Clear any previous bundle, then upload all files.
+  // Clear any previous bundle, then upload all files in bounded-concurrency
+  // batches (avoids opening up to maxFiles S3 connections + holding every body
+  // in flight at once).
   try {
     await deleteStaticPrefix(prefix);
-    await Promise.all(
-      normalized.map((e) =>
-        uploadStaticFile(`${prefix}${e.rel}`, Buffer.from(e.data), contentTypeFor(e.rel)),
-      ),
-    );
+    const BATCH = 16;
+    for (let i = 0; i < normalized.length; i += BATCH) {
+      const batch = normalized.slice(i, i + BATCH);
+      await Promise.all(
+        batch.map((e) =>
+          uploadStaticFile(`${prefix}${e.rel}`, Buffer.from(e.data), contentTypeFor(e.rel)),
+        ),
+      );
+    }
   } catch (e) {
     console.error("[host] upload failed:", e);
     return NextResponse.json({ error: "upload_failed" }, { status: 500 });
