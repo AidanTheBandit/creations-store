@@ -19,6 +19,62 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+// Decide which directory in the uploaded zip is the real site root, returning a
+// prefix to re-root to ("" = already at root, "apps/app/dist/" = a subdir, null
+// = no usable site). Strategy, in order:
+//   1. index.html already at the zip root → use root.
+//   2. The root index.html is a meta-refresh / link redirect into a subdir →
+//      follow it (handles the rabbit-os export shape).
+//   3. Otherwise pick the shallowest index.html that has a sibling assets/ dir
+//      (a real built app), preferring a path containing "dist" or "build".
+function pickSiteRoot(entries: { rel: string; data: Uint8Array }[]): string | null {
+  const paths = new Set(entries.map((e) => e.rel));
+  if (paths.has("index.html")) {
+    // If root index is just a redirect, prefer its target; else serve root.
+    const root = entries.find((e) => e.rel === "index.html");
+    const target = root ? redirectTarget(root.data) : null;
+    if (target && paths.has(target)) {
+      return target.slice(0, target.lastIndexOf("/") + 1);
+    }
+    return "";
+  }
+
+  // All index.html locations, shallowest first.
+  const indexes = entries
+    .filter((e) => e.rel.endsWith("/index.html"))
+    .map((e) => e.rel)
+    .sort((a, b) => a.split("/").length - b.split("/").length);
+  if (indexes.length === 0) return null;
+
+  // Prefer a built-output dir (dist/build) that also has an assets/ sibling.
+  const scored = indexes
+    .map((p) => {
+      const dir = p.slice(0, p.lastIndexOf("/") + 1);
+      const hasAssets = [...paths].some((q) => q.startsWith(`${dir}assets/`));
+      const built = /(^|\/)(dist|build|out|public)\//.test(dir) ? 1 : 0;
+      return { dir, score: built * 2 + (hasAssets ? 1 : 0), depth: dir.split("/").length };
+    })
+    .sort((a, b) => b.score - a.score || a.depth - b.depth);
+  return scored[0].dir;
+}
+
+// Extract a same-bundle redirect target from a tiny HTML shell (meta-refresh or
+// a single relative link). Returns a normalized relative path or null.
+function redirectTarget(html: Uint8Array): string | null {
+  let text: string;
+  try {
+    text = Buffer.from(html).toString("utf8");
+  } catch {
+    return null;
+  }
+  if (text.length > 4000) return null; // only treat tiny shells as redirects
+  const meta = text.match(/url=([^"'>\s]+)/i);
+  const link = text.match(/href=["']([^"']+)["']/i);
+  const raw = (meta?.[1] || link?.[1] || "").trim();
+  if (!raw || /^https?:|^\/\//i.test(raw)) return null; // external → not our bundle
+  return safeRelPath(raw);
+}
+
 // Owner check shared by POST/DELETE.
 async function ownedCreation(id: string) {
   const user = await getCurrentUser();
@@ -119,21 +175,28 @@ export async function POST(
     return NextResponse.json({ error: "bundle_too_large" }, { status: 413 });
   }
 
-  // If a single top-level folder wraps everything (common when zipping a dir),
-  // strip it so index.html lands at the root.
-  const topDirs = new Set(entries.map((e) => e.rel.split("/")[0]));
-  const hasRootIndex = entries.some((e) => e.rel === "index.html");
-  let normalized = entries;
-  if (!hasRootIndex && topDirs.size === 1) {
-    const prefix = `${[...topDirs][0]}/`;
-    const stripped = entries
-      .map((e) => ({ rel: e.rel.slice(prefix.length), data: e.data }))
-      .filter((e) => e.rel.length > 0);
-    if (stripped.some((e) => e.rel === "index.html")) normalized = stripped;
+  // Pick the directory that is the real site root and re-root the bundle to it,
+  // so the served files have index.html at the top. Handles: a clean zip
+  // (index.html already at root), a single wrapper folder, AND a zip whose root
+  // index.html is just a meta-refresh redirect into a build dir (e.g. the
+  // rabbit-os export → apps/app/dist/index.html) surrounded by source/junk.
+  const rootPrefix = pickSiteRoot(entries);
+  if (rootPrefix === null) {
+    return NextResponse.json({ error: "missing_index_html" }, { status: 400 });
   }
+  let normalized = rootPrefix
+    ? entries
+        .filter((e) => e.rel.startsWith(rootPrefix))
+        .map((e) => ({ rel: e.rel.slice(rootPrefix.length), data: e.data }))
+        .filter((e) => e.rel.length > 0)
+    : entries;
 
   if (!normalized.some((e) => e.rel === "index.html")) {
     return NextResponse.json({ error: "missing_index_html" }, { status: 400 });
+  }
+  // Re-apply the file-count cap after re-rooting (we may have dropped a lot).
+  if (normalized.length > HOSTING_LIMITS.maxFiles) {
+    return NextResponse.json({ error: "too_many_files" }, { status: 413 });
   }
 
   const prefix = staticKeyPrefix(creation.id);

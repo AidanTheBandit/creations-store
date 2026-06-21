@@ -52,6 +52,30 @@ function isValidCreationUrl(url: string): boolean {
   }
 }
 
+/**
+ * store_creations.slug is globally UNIQUE, so two creations titled "Test" would
+ * collide. Find the first free variant: base, base-2, base-3, … Falls back to a
+ * random proxy code if the base is empty.
+ */
+async function uniqueSlug(
+  admin: ReturnType<typeof createAdminClient>,
+  base: string,
+): Promise<string> {
+  let root = generateSlug(base);
+  if (!root) root = generateProxyCode();
+  for (let n = 1; n < 100; n++) {
+    const candidate = n === 1 ? root : `${root}-${n}`;
+    const { data } = await admin
+      .from("store_creations")
+      .select("id")
+      .eq("slug", candidate)
+      .maybeSingle();
+    if (!data) return candidate;
+  }
+  // Pathological fallback — guaranteed-unique random suffix.
+  return `${root}-${generateProxyCode()}`;
+}
+
 // Helper function to fetch metadata for bulk upload
 async function generateContent(url: string) {
   try {
@@ -408,12 +432,13 @@ export async function createCreation(
       return { error: "URL must be a valid http or https address" };
     }
 
-    let slug = formData.slug;
-    if (!slug) {
-      slug = generateSlug(formData.title);
-    }
+    // Always resolve to a free slug (the column is globally UNIQUE), whether the
+    // client supplied one from the title or not.
+    const slug = await uniqueSlug(admin, formData.slug || formData.title);
 
-    const { error } = await admin.from("store_creations").insert({
+    const { data: inserted, error } = await admin
+      .from("store_creations")
+      .insert({
       title: formData.title,
       slug,
       url: formData.url,
@@ -431,7 +456,9 @@ export async function createCreation(
       user_id: sessionUser.id,
       status: formData.status || "draft",
       proxy_code: generateProxyCode(),
-    });
+    })
+      .select("id, slug")
+      .single();
 
     if (error) {
       return { error: error.message };
@@ -440,7 +467,7 @@ export async function createCreation(
     revalidatePath("/admin");
     revalidatePath("/");
     revalidatePath("/dashboard");
-    return { success: true };
+    return { success: true, data: { id: inserted?.id, slug: inserted?.slug } };
   } catch (err) {
     console.error("Error creating creation:", err);
     return { error: "Failed to create creation" };

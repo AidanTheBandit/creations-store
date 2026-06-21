@@ -10,14 +10,19 @@ export const dynamic = "force-dynamic";
 // allow-same-origin, so hosted JS — even though it shares the creations.boondit
 // .site hostname — cannot read the store's cookies/session/DOM or call store
 // APIs as the logged-in user.
+// Hosted creations are arbitrary user apps and routinely call external APIs, so
+// connect/img/media/font allow any https origin. This does NOT weaken store
+// isolation: the `sandbox` directive (no allow-same-origin) gives the document
+// an opaque origin, so it still can't read the store's cookies/DOM or call
+// /api/* with the user's session — it can only reach the open web as itself.
 const HOSTED_CSP = [
-  "default-src 'self' data: blob: https://cdn.boondit.site",
+  "default-src 'self' data: blob: https:",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://cdn.boondit.site",
-  "font-src 'self' data:",
-  "media-src 'self' data: blob: https://cdn.boondit.site",
-  "connect-src 'self' https://cdn.boondit.site",
+  "style-src 'self' 'unsafe-inline' https:",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data: https:",
+  "media-src 'self' data: blob: https:",
+  "connect-src 'self' https:",
   "sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock",
 ].join("; ");
 

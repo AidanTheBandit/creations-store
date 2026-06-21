@@ -109,22 +109,61 @@ export function CreationForm({
     creation?.staticFileCount ?? null,
   );
   const [isUploadingBundle, setIsUploadingBundle] = useState(false);
+  // The creation id files attach to. Starts as the edited creation; in create
+  // mode it's filled in on first upload (we auto-create a draft behind the
+  // scenes so the user never has to "save first").
+  const [hostedCreationId, setHostedCreationId] = useState<string | null>(
+    creation?.id ?? null,
+  );
 
-  // Upload a zip bundle for this creation (edit mode only — needs an id).
-  const handleBundleUpload = async (file: File) => {
-    if (!creation?.id) {
-      toast.error("Save the creation first, then upload a bundle.");
-      return;
+  // Auto-create a draft creation from the current form values so a brand-new
+  // creation can receive a bundle without a manual save step. Returns its id.
+  const ensureCreationId = async (): Promise<string | null> => {
+    if (hostedCreationId) return hostedCreationId;
+    if (!formData.title.trim()) {
+      toast.error("Add a title first, then upload your bundle.");
+      return null;
     }
+    const fd: Record<string, string> = {
+      title: formData.title,
+      slug: formData.slug,
+      description: formData.description,
+      // Predicted hosted URL; the host upload overwrites it authoritatively.
+      url:
+        formData.url ||
+        `https://creations.boondit.site/c/${formData.slug || "app"}/`,
+      iconUrl: formData.iconUrl,
+      ogImage: formData.ogImage,
+      themeColor: formData.themeColor,
+      author: formData.author,
+      screenshotUrl: formData.screenshotUrl,
+      categoryId: formData.categoryId,
+      status: formData.status,
+      userId,
+    };
+    const result = await createCreation(null, fd as any);
+    if (result.error || !result.data?.id) {
+      toast.error(result.error || "Couldn't create the creation");
+      return null;
+    }
+    setHostedCreationId(result.data.id);
+    return result.data.id;
+  };
+
+  // Upload a zip bundle. In edit mode it uses the existing creation; in create
+  // mode it auto-creates a draft first (no manual save needed).
+  const handleBundleUpload = async (file: File) => {
     if (!/\.zip$/i.test(file.name)) {
       toast.error("Please select a .zip file");
       return;
     }
     setIsUploadingBundle(true);
     try {
+      const id = await ensureCreationId();
+      if (!id) return;
       const fd = new FormData();
       fd.append("bundle", file);
-      const res = await fetch(`/api/creation/${creation.id}/host`, {
+      const res = await fetch(`/api/creation/${id}/host`, {
         method: "POST",
         body: fd,
       });
@@ -148,14 +187,14 @@ export function CreationForm({
 
   // Revert to an external URL (clears the hosted bundle).
   const handleUnhost = async () => {
-    if (!creation?.id) {
+    if (!hostedCreationId) {
       setHostingType("external");
       return;
     }
     if (!confirm("Remove the hosted files and switch back to an external URL?")) return;
     setIsUploadingBundle(true);
     try {
-      const res = await fetch(`/api/creation/${creation.id}/host`, { method: "DELETE" });
+      const res = await fetch(`/api/creation/${hostedCreationId}/host`, { method: "DELETE" });
       if (!res.ok) {
         toast.error("Failed to remove hosted files");
         return;
@@ -456,13 +495,16 @@ export function CreationForm({
         formDataObj.append("status", formData.status);
       }
 
-      const result = mode === "create"
-        ? await createCreation(null, Object.fromEntries(formDataObj) as any)
-        : await updateCreation(null, {
+      // In create mode we may have already auto-created a draft when the user
+      // uploaded a bundle — update that row instead of creating a duplicate.
+      const existingId = creation?.id?.toString() || hostedCreationId;
+      const result = existingId
+        ? await updateCreation(null, {
             ...(Object.fromEntries(formDataObj) as any),
-            id: creation!.id.toString(),
+            id: existingId,
             userId,
-          });
+          })
+        : await createCreation(null, Object.fromEntries(formDataObj) as any);
 
       if (result.error) {
         toast.error(result.error);
@@ -613,72 +655,68 @@ export function CreationForm({
                   `https://creations.boondit.site/c/${formData.slug || "draft"}/`
                 }
               />
-              {mode === "create" ? (
-                <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                  Save this creation as a draft first, then upload your bundle from
-                  the edit screen.
+              <div className="space-y-2">
+                {hostedUrl && (
+                  <div className="flex items-center justify-between rounded-md border bg-card px-3 py-2 text-sm">
+                    <span className="truncate">
+                      <span className="text-muted-foreground">Live at </span>
+                      <a
+                        href={hostedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-primary hover:underline"
+                      >
+                        {hostedUrl}
+                      </a>
+                      {hostedFileCount != null && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          ({hostedFileCount} files)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )}
+                <label
+                  className={cn(
+                    "flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed px-3 py-4 text-sm transition-colors hover:bg-card",
+                    isUploadingBundle && "pointer-events-none opacity-60",
+                  )}
+                >
+                  {isUploadingBundle ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  {hostedUrl ? "Replace bundle (.zip)" : "Upload bundle (.zip)"}
+                  <input
+                    type="file"
+                    accept=".zip,application/zip"
+                    className="hidden"
+                    disabled={isUploadingBundle}
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) handleBundleUpload(e.target.files[0]);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Zip your site with <span className="font-mono">index.html</span> in
+                  it (root, a wrapper folder, or a build dir — we find it). Max
+                  25&nbsp;MB. Served securely from the Boondit CDN.
+                  {mode === "create" &&
+                    " Uploading saves this creation as a draft automatically."}
                 </p>
-              ) : (
-                <div className="space-y-2">
-                  {hostedUrl && (
-                    <div className="flex items-center justify-between rounded-md border bg-card px-3 py-2 text-sm">
-                      <span className="truncate">
-                        <span className="text-muted-foreground">Live at </span>
-                        <a
-                          href={hostedUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-mono text-primary hover:underline"
-                        >
-                          {hostedUrl}
-                        </a>
-                        {hostedFileCount != null && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            ({hostedFileCount} files)
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  )}
-                  <label
-                    className={cn(
-                      "flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed px-3 py-4 text-sm transition-colors hover:bg-card",
-                      isUploadingBundle && "pointer-events-none opacity-60",
-                    )}
+                {hostedUrl && (
+                  <button
+                    type="button"
+                    onClick={handleUnhost}
+                    disabled={isUploadingBundle}
+                    className="text-xs text-red-400 hover:underline"
                   >
-                    {isUploadingBundle ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4" />
-                    )}
-                    {hostedUrl ? "Replace bundle (.zip)" : "Upload bundle (.zip)"}
-                    <input
-                      type="file"
-                      accept=".zip,application/zip"
-                      className="hidden"
-                      disabled={isUploadingBundle}
-                      onChange={(e) => {
-                        if (e.target.files?.[0]) handleBundleUpload(e.target.files[0]);
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
-                  <p className="text-xs text-muted-foreground">
-                    Zip your site with <span className="font-mono">index.html</span> at
-                    the root. Max 25&nbsp;MB. Served securely from the Boondit CDN.
-                  </p>
-                  {hostedUrl && (
-                    <button
-                      type="button"
-                      onClick={handleUnhost}
-                      disabled={isUploadingBundle}
-                      className="text-xs text-red-400 hover:underline"
-                    >
-                      Switch back to an external URL
-                    </button>
-                  )}
-                </div>
-              )}
+                    Switch back to an external URL
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
