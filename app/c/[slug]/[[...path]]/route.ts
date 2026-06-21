@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStaticObject } from "@/lib/s3";
-import { staticKeyPrefix, contentTypeFor, safeRelPath } from "@/lib/hosting";
+import { contentTypeFor, safeRelPath } from "@/lib/hosting";
+import { staticHostingEnabled } from "@/lib/flags";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +52,7 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ slug: string; path?: string[] }> },
 ) {
+  if (!staticHostingEnabled()) return notFound();
   const { slug, path } = await params;
 
   const admin = createAdminClient();

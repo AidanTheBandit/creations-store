@@ -18,6 +18,7 @@ import { Loader2, ArrowLeft, Upload, X, Star, Trash2, Image as ImageIcon } from 
 import { toast } from "sonner";
 import type { Category } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { staticHostingEnabled } from "@/lib/flags";
 
 interface Screenshot {
   id: string;
@@ -93,6 +94,7 @@ export function CreationForm({
   initialValues,
 }: CreationFormProps) {
   const router = useRouter();
+  const hostingEnabled = staticHostingEnabled();
   const [isSaving, setIsSaving] = useState(false);
   const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
   const [uploadingCount, setUploadingCount] = useState(0);
@@ -597,7 +599,10 @@ export function CreationForm({
         <h3 className="text-lg font-semibold">Basic Information</h3>
 
         <div className="grid grid-cols-1 gap-4">
-          {/* Hosting choice: external URL vs host a static bundle on Boondit */}
+          {/* Hosting choice: external URL vs host a static bundle on Boondit.
+              Gated behind the static-hosting flag while we move hosted content
+              to a separate cookieless origin. */}
+          {hostingEnabled && (
           <div className="space-y-2">
             <Label>Hosting</Label>
             <div className="flex gap-2">
@@ -627,8 +632,9 @@ export function CreationForm({
               </button>
             </div>
           </div>
+          )}
 
-          {hostingType === "external" ? (
+          {!hostingEnabled || hostingType === "external" ? (
             <div className="space-y-2">
               <Label htmlFor="url">URL *</Label>
               <Input

@@ -14,6 +14,7 @@ import {
   HOSTING_LIMITS,
 } from "@/lib/hosting";
 import { revalidatePath } from "next/cache";
+import { staticHostingEnabled } from "@/lib/flags";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -95,6 +96,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (!staticHostingEnabled()) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
   const { id } = await params;
   const ctx = await ownedCreation(id);
   if ("error" in ctx) {
